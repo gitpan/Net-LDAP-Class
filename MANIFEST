@@ -1,0 +1,18 @@
+Changes
+MANIFEST
+Makefile.PL
+README
+lib/Net/LDAP/Class.pm
+lib/Net/LDAP/Class/Group.pm
+lib/Net/LDAP/Class/Group/POSIX.pm
+lib/Net/LDAP/Class/Loader.pm
+lib/Net/LDAP/Class/Metadata.pm
+lib/Net/LDAP/Class/MethodMaker.pm
+lib/Net/LDAP/Class/User.pm
+lib/Net/LDAP/Class/User/POSIX.pm
+t/00-load.t
+t/pod-coverage.t
+t/pod.t
+t/001-crud.t
+t/lib/LDAPTestPOSIX.pm
+META.yml                                 Module meta-data (added by MakeMaker)
