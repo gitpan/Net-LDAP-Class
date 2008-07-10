@@ -3,3 +3,7 @@ Revision history for Net-LDAP-Class
 0.01    10 July 2008
         First version, released on an unsuspecting world.
 
+0.02    10 July 2008
+        * fix Makefile.PL to include Net::LDAP::Batch dependency.
+
+

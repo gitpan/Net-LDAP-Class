@@ -6,7 +6,7 @@ use base qw( Rose::Object );
 use Scalar::Util::Clone;
 use Net::LDAP::Class::Loader;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 #
 # much of this stolen verbatim from RDBO::Metadata
