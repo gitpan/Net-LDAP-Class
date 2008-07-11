@@ -17,7 +17,7 @@ WriteMakefile(
         'Net::LDAP'    => 0,
         'Net::LDAP::Server::Test' => 0.03,
         'Net::LDAP::Batch' => 0,
-        'Scalar::Util::Clone' => 0,
+        'Clone' => 0,
 
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },

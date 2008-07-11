@@ -3,10 +3,10 @@ use strict;
 use warnings;
 use Carp;
 use base qw( Rose::Object );
-use Scalar::Util::Clone;
+use Clone ();
 use Net::LDAP::Class::Loader;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 #
 # much of this stolen verbatim from RDBO::Metadata
@@ -154,13 +154,13 @@ sub setup {
 
 =head2 clone
 
-Returns a clone of the Metadata object. Uses Scalar::Util::Clone.
+Returns a clone of the Metadata object. Uses Clone::clone().
 
 =cut
 
 sub clone {
     my $self = shift;
-    return Scalar::Util::Clone::clone($self);
+    return Clone::clone($self);
 }
 
 =head2 for_class( I<class_name> )
