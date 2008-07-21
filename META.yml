@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                Net-LDAP-Class
-version:             0.03
+version:             0.04
 abstract:            object-relational mapper for Net::LDAP
 license:             ~
 author:              
@@ -14,7 +14,7 @@ requires:
     MIME::Base64:                  0
     Net::LDAP:                     0
     Net::LDAP::Batch:              0
-    Net::LDAP::Server::Test:       0.03
+    Net::LDAP::Server::Test:       0.05
     Rose::Object:                  0
     Test::More:                    0
 meta-spec:

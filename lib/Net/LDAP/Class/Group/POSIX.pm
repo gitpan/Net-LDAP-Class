@@ -4,7 +4,7 @@ use warnings;
 use Carp;
 use base qw( Net::LDAP::Class::Group );
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 my $RESERVED_GID = 999999;    # used when renaming groups
 
@@ -300,7 +300,7 @@ sub action_for_update {
                             base   => "ou=People," . $user->base_dn,
                             scope  => "sub",
                             filter => "(uid=$uid)",
-                            attrs  => [],
+                            attrs  => $user->meta->attributes,
                         ],
                         replace => { gidNumber => $new_gid }
                     },
@@ -314,7 +314,7 @@ sub action_for_update {
                             base   => "ou=People," . $self->base_dn,
                             scope  => "sub",
                             filter => "(uid=$uid)",
-                            attrs  => [],
+                            attrs  => $self->meta->attributes,
                         ],
                     }
                 ],
@@ -338,7 +338,7 @@ sub action_for_update {
 
 =head2 action_for_delete( [cn => I<cn_value>] )
 
-Removes array ref of actions for removing the organizational unit
+Returns array ref of actions for removing the organizational unit
 and the posixGroup.
 
 You may call this as a class method with an explicit B<cn> key/value
@@ -378,14 +378,14 @@ sub action_for_delete {
                 base   => 'ou=People,' . $group->base_dn,
                 scope  => 'sub',
                 filter => "(ou=$name)",
-                attrs  => [],
+                attrs  => $group->meta->attributes,
             ],
         },
         {   search => [
                 base   => "ou=Group," . $group->base_dn,
                 scope  => "sub",
                 filter => "(cn=$name)",
-                attrs  => [],
+                attrs  => $group->meta->attributes,
             ],
         },
 
@@ -438,25 +438,16 @@ sub fetch_secondary_users {
     return wantarray ? @users : \@users;
 }
 
-=head2 name
+=head2 gid
 
-Same as calling cn() with no arguments. 
-A Group object stringifies to this method.
+Alias for gidNumber() attribute.
 
 =cut
 
-sub name {
+sub gid {
     my $self = shift;
-    return $self->cn;
+    $self->gidNumber(@_);
 }
-
-=head2 stringify
-
-Aliased to name().
-
-=cut
-
-*stringify = \&name;
 
 1;
 

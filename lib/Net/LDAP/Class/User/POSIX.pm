@@ -9,7 +9,7 @@ use base qw( Net::LDAP::Class::User );
 use Rose::Object::MakeMethods::Generic ( 'scalar --get_set_init' =>
         [qw( default_shell default_home_dir default_email_suffix )], );
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 # see http://www.ietf.org/rfc/rfc2307.txt
 
@@ -114,30 +114,6 @@ You likely want to override this in your subclass.
 
 sub init_group_class {'Net::LDAP::Class::Group::POSIX'}
 
-=head2 username
-
-Same as calling uid() with no arguments, just easier to remember. 
-Objects will stringify using this method.
-
-Example:
-
-  print $user;  # same as print $user->username;
- 
-=cut
-
-sub username {
-    my $self = shift;
-    return $self->uid;
-}
-
-=head2 stringify
-
-Aliased to username().
-
-=cut
-
-*stringify = \&username;
-
 =head2 action_for_create([ uid => I<username>, uidNumber => I<nnn> ])
 
 Returns hash ref suitable for creating a Net::LDAP::Batch::Action::Add.
@@ -200,7 +176,7 @@ sub action_for_create {
                     base   => "ou=Group,$group_dn",
                     scope  => "sub",
                     filter => "(cn=$group_name)",
-                    attrs  => [],
+                    attrs  => $group->meta->attributes,
                 ],
                 replace => { memberUid => [@newUids] }
             };
@@ -239,6 +215,13 @@ sub setup_for_write {
         gidNumber => $self->gidNumber,
         ldap      => $self->ldap
         )->read;
+
+    if ( !defined $group ) {
+        croak "group "
+            . $self->gidNumber
+            . " is not yet in LDAP. Must add it before creating User";
+    }
+
     if ( ref $group and $group->isa('Net::LDAP::Class::Group::POSIX') ) {
         $gid   = $group->gidNumber;
         $group = $group->cn;
@@ -331,7 +314,7 @@ sub action_for_update {
                     base   => "ou=People," . $self->base_dn,
                     scope  => "sub",
                     filter => "(uid=$username)",
-                    attrs  => [],
+                    attrs  => $self->meta->attributes,
                 ],
                 replace => \%replace
             }
@@ -356,7 +339,7 @@ sub action_for_update {
                         base   => "ou=People," . $self->base_dn,
                         scope  => "sub",
                         filter => "(uid=$username)",
-                        attrs  => [],
+                        attrs  => $self->meta->attributes,
                     ],
                     replace => { gidNumber => $self->group->gidNumber },
                 },
@@ -370,7 +353,7 @@ sub action_for_update {
                         base   => "ou=People," . $self->base_dn,
                         scope  => "sub",
                         filter => "(uid=$username)",
-                        attrs  => [],
+                        attrs  => $self->meta->attributes,
                     ],
                 }
             ],
@@ -388,6 +371,9 @@ sub action_for_update {
 
         my $existing_groups = $self->fetch_groups;
         my %existing = map { $_->gidNumber => $_ } @$existing_groups;
+        
+        # the delete $self->{groups} has helpful side effect of clearing
+        # cache.
         my %new = map { $_->gidNumber => $_ } @{ delete $self->{groups} };
 
         # which should be added
@@ -402,7 +388,7 @@ sub action_for_update {
                         base   => "ou=Group,$group_dn",
                         scope  => "one",
                         filter => "(cn=$group_name)",
-                        attrs  => [],
+                        attrs  => $new{$gid}->meta->attributes,
                     ],
                     replace => { memberUid => [@newUids] }
                 };
@@ -423,7 +409,7 @@ sub action_for_update {
                         base   => "ou=Group,$group_dn",
                         scope  => "one",
                         filter => "(cn=$group_name)",
-                        attrs  => [],
+                        attrs  => $existing{$gid}->meta->attributes,
                     ],
                     replace => { memberUid => [@newUids] }
                 };
@@ -472,7 +458,7 @@ sub action_for_delete {
                 base   => "ou=People," . $self->base_dn,
                 scope  => "sub",
                 filter => "(uid=$username)",
-                attrs  => [],
+                attrs  => $self->meta->attributes,
             ]
         }
     );
@@ -522,9 +508,21 @@ sub fetch_groups {
     );
 }
 
-=head2 userPassword([I<plain_password>])
+=head2 gid
 
-Special case of overriding attribute name with its own method.
+Alias for gidNumber() attribute.
+
+=cut
+
+sub gid {
+    my $self = shift;
+    $self->gidNumber(@_);
+}
+
+=head2 password([I<plain_password>])
+
+Convenience wrapper around userPassword() attribute method.
+
 This method will SHA-1-hashify I<plain_password> using ssha_hash()
 and set the hash
 in the ldap_entry(). If no argument is supplied, returns the hash
@@ -532,7 +530,7 @@ string set in ldap_entry() (if any).
 
 =cut
 
-sub userPassword {
+sub password {
     my $self      = shift;
     my $attribute = 'userPassword';
 
@@ -578,41 +576,6 @@ wrapper around ssha_hash() and random_string().
 sub new_password {
     my $self = shift;
     return $self->ssha_hash( $self->random_string(@_) );
-}
-
-=head2 random_string([I<len>])
-
-Returns a random alphanumeric string of length I<len> (default: 8).
-
-=cut
-
-# possible characters (omits common mistaken letters Oh and el)
-my @charset = (
-    'a' .. 'k', 'm' .. 'z', 'A' .. 'N', 'P' .. 'Z', '1' .. '9', '.',
-    ':',        '^',        '?',        '@',        '('
-);
-
-sub random_string {
-    my $self = shift;
-    my $len = shift || 8;
-
-    # set random seed
-    my ( $usert, $system, $cuser, $csystem ) = times;
-    srand( ( $$ ^ $usert ^ $system ^ time ) );
-
-    # select characters
-    # retry until we get at least one non-alpha char
-    my @chars;
-    do {
-        @chars = ();
-        for ( my $i = 0; $i <= ( $len - 1 ); $i++ ) {
-            $chars[$i] = $charset[ int( rand($#charset) + 1 ) ];
-        }
-    } until ( grep /[123456789\.:\^\?@\(]/, @chars );
-
-    # pack characters into scalar
-    my $tmp_passwd = pack( 'a' x $len, @chars );
-    return $tmp_passwd;
 }
 
 sub _random_seed {

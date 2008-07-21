@@ -5,14 +5,18 @@ README
 lib/Net/LDAP/Class.pm
 lib/Net/LDAP/Class/Group.pm
 lib/Net/LDAP/Class/Group/POSIX.pm
+lib/Net/LDAP/Class/Group/AD.pm
 lib/Net/LDAP/Class/Loader.pm
 lib/Net/LDAP/Class/Metadata.pm
 lib/Net/LDAP/Class/MethodMaker.pm
 lib/Net/LDAP/Class/User.pm
 lib/Net/LDAP/Class/User/POSIX.pm
+lib/Net/LDAP/Class/User/AD.pm
 t/00-load.t
 t/pod-coverage.t
 t/pod.t
-t/001-crud.t
+t/001-posix.t
+t/002-ad.t
 t/lib/LDAPTestPOSIX.pm
+t/lib/LDAPTestAD.pm
 META.yml                                 Module meta-data (added by MakeMaker)

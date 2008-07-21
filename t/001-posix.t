@@ -82,7 +82,7 @@ ok( my $user = MyLDAPUser->new(
 
 ok( $user->create, "create user" );
 
-ok( $user->userPassword, "random password was set" );
+ok( $user->password, "random password was set" );
 
 ok( my $user2 = MyLDAPUser->new(
         uid  => 'foouser',
@@ -124,7 +124,7 @@ ok( $user->add_to_group($group), "make $group a secondary group" );
 
 ok( $user->update, "save group changes" );
 
-cmp_ok( $foo_group2->gidNumber, '==', $user->gidNumber, "prim group changed" );
+cmp_ok( $foo_group2->gid, '==', $user->gid, "prim group changed" );
 
 ok( $foo_group2->read, "re-read $foo_group2 from server" );
 
@@ -148,12 +148,8 @@ ok( $user->remove_from_group($bar_group),
 
 ok( $user->update, "save changes to group undo" );
 
-cmp_ok( $group->gidNumber, '==', $user->gidNumber, "prim group changed" );
+cmp_ok( $group->gid, '==', $user->gid, "prim group changed" );
 
 ok( !$user->groups, "no secondary groups" );
 ok( !@{ $group->fetch_secondary_users }, "no secondary users" );
-
-# must delete this manually so that $ldap is DESTROY'd
-# otherwise server would never exit and test would never end.
-delete $Net::LDAP::Class::Metadata::Objects{'MyLDAPUser'};
 

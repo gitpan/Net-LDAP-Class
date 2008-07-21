@@ -8,7 +8,7 @@ use Net::LDAP::Class::MethodMaker (
     'related_objects'       => [qw( group groups )],
 );
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 =head1 NAME
 
@@ -120,6 +120,61 @@ Default is to croak indicating you must override this method in your subclass.
 =cut
 
 sub init_group_class { croak "must override init_group_class" }
+
+=head2 stringify
+
+Aliased to username().
+
+=cut
+
+sub stringify { shift->username }
+
+=head2 username
+
+Returns the value of the first unique attribute.
+
+=cut
+
+sub username {
+    my $self = shift;
+    my $attr = $self->meta->unique_attributes->[0];
+    return $self->$attr;
+}
+
+=head2 random_string([I<len>])
+
+Returns a random alphanumeric string of length I<len> (default: 8).
+
+=cut
+
+# possible characters (omits common mistaken letters Oh and el)
+my @charset = (
+    'a' .. 'k', 'm' .. 'z', 'A' .. 'N', 'P' .. 'Z', '1' .. '9', '.',
+    ':',        '^',        '?',        '@',        '('
+);
+
+sub random_string {
+    my $self = shift;
+    my $len = shift || 8;
+
+    # set random seed
+    my ( $usert, $system, $cuser, $csystem ) = times;
+    srand( ( $$ ^ $usert ^ $system ^ time ) );
+
+    # select characters
+    # retry until we get at least one non-alpha char
+    my @chars;
+    do {
+        @chars = ();
+        for ( my $i = 0; $i <= ( $len - 1 ); $i++ ) {
+            $chars[$i] = $charset[ int( rand($#charset) + 1 ) ];
+        }
+    } until ( grep /[123456789\.:\^\?@\(]/, @chars );
+
+    # pack characters into scalar
+    my $tmp_passwd = pack( 'a' x $len, @chars );
+    return $tmp_passwd;
+}
 
 1;
 

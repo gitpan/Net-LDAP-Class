@@ -11,11 +11,13 @@ use Net::LDAP::Batch;
 use Net::LDAP::Class::Metadata;
 
 use Net::LDAP::Class::MethodMaker (
-    'scalar --get_set_init' => [qw( ldap ldap_entry debug batch )], );
+    'scalar --get_set_init' => [qw( ldap ldap_entry debug )],
+    'scalar'                => [qw( batch prev_batch )],
+);
 
 use overload '""' => 'stringify';
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 =head1 NAME
 
@@ -231,7 +233,7 @@ By default all NLC-derived objects are overloaded with this method.
 
 sub stringify {
     my $self = shift;
-    for my $key ( @{ $self->unique_keys } ) {
+    for my $key ( @{ $self->unique_attributes } ) {
         my $val = $self->$key;
         return $val if defined $val;
     }
@@ -280,12 +282,12 @@ sub find {
         croak "must indicate base_dn in opts or call as object method";
     }
 
-    my $msg = $ldap->search(
-        base => $base,
-        %opts,
+    my $attr = delete $opts{attrs} || $self->meta->attributes;
 
-        # Net::LDAP::FAQ claims this should return everything for LDAPv2
-        attrs => [],
+    my $msg = $ldap->search(
+        base  => $base,
+        attrs => $attr,
+        %opts,
     );
 
     my @results;
@@ -370,15 +372,14 @@ sub read {
     }
 
     my $base_dn = delete $opts{base_dn} || $self->base_dn;
+    
+    $self->debug && warn "read() within $base_dn : $filter=$value\n";
 
     my $msg = $self->ldap->search(
         base   => $base_dn,
         scope  => "sub",
         filter => "($filter=$value)",
-
-        # Net::LDAP::FAQ claims this should return everything for LDAPv2
-        # but perhaps we should explicitly call $self->attributes instead??
-        attrs => [],
+        attrs  => $self->meta->attributes,
     );
 
     if ( $msg->count() > 0 ) {
@@ -474,8 +475,11 @@ sub read_or_create {
 
 =head2 do_batch( I<array_of_actions> )
 
-Creates and runs a Net::LDAP::Batch object, passing it
+Creates (if batch() is not already set) 
+and runs a Net::LDAP::Batch object, passing it
 the I<array_of_actions> to run. Will croak on any error.
+
+Returns the Net::LDAP::Batch object on success.
 
 =cut
 
@@ -486,12 +490,33 @@ sub do_batch {
         warn "no actions to execute\n";
         return;
     }
-    my $batch = Net::LDAP::Batch->new(
-        ldap    => $self->ldap,
-        actions => \@actions,
-        debug   => $self->debug,
+    my $batch = $self->batch || Net::LDAP::Batch->new(
+        ldap  => $self->ldap,
+        debug => $self->debug,
     );
+    if ( $self->debug ) {
+        warn "Batch: " . Data::Dump::dump($batch);
+    }
+    $batch->add_actions(@actions);
+    $self->prev_batch($batch);
     $batch->do or croak $batch->error;
+    return $batch;
+}
+
+=head2 add_to_batch( I<array_of_actions> )
+
+Initializes (if necessary) and adds I<array_of_actions>
+to the Net::LDAP::Batch object in batch().
+
+=cut
+
+sub add_to_batch {
+    my $self = shift;
+    my $batch = $self->batch || Net::LDAP::Batch->new(
+        ldap  => $self->ldap,
+        debug => $self->debug
+    );
+    $batch->add_actions(@_);
     $self->batch($batch);
 }
 
@@ -504,11 +529,11 @@ by batch(). If there is not batch() set, will croak.
 
 sub rollback {
     my $self = shift;
-    if ( $self->batch ) {
-        $self->batch->rollback or croak $self->batch->error;
+    if ( $self->prev_batch ) {
+        $self->prev_batch->rollback or croak $self->prev_batch->error;
     }
     else {
-        croak "no batch to rollback";
+        croak "no prev_batch to rollback";
     }
     return 1;
 }
@@ -556,7 +581,7 @@ sub check_unique_attributes_set {
     my $self = shift;
     my $uk   = $self->unique_attributes;
     if ( !ref($uk) eq 'ARRAY' ) {
-        croak "unique_keys must be an ARRAY ref";
+        croak "unique_attributes must be an ARRAY ref";
     }
     for my $key (@$uk) {
         if ( defined $self->$key ) {

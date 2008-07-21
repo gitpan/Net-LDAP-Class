@@ -9,5 +9,11 @@ Revision history for Net-LDAP-Class
 0.03    11 July 2008 
         * replace Scalar::Util::Clone with Clone (5.10 issue?)
 
-
+0.04    21 July 2008
+        * explicitly ask for meta->attributes whenever we search
+        * add add_to_batch() and prev_batch() methods and refactor
+          how rollback() works.
+        * fix bug, renaming unique_keys to unique_attributes in a few
+          leftover places.
+        * add Active Directory classes for User and Group
 
