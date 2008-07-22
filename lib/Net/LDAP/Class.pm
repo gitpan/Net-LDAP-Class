@@ -13,11 +13,12 @@ use Net::LDAP::Class::Metadata;
 use Net::LDAP::Class::MethodMaker (
     'scalar --get_set_init' => [qw( ldap ldap_entry debug )],
     'scalar'                => [qw( batch prev_batch )],
+    'object_or_class_meta'  => [qw( attributes unique_attributes base_dn )],
 );
 
 use overload '""' => 'stringify';
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 =head1 NAME
 
@@ -136,30 +137,6 @@ sub meta {
     return $Net::LDAP::Class::Metadata::Objects{$self}
         || $self->meta_class->for_class($self);
 }
-
-=head2 attributes
-
-Shortcut for $self->meta->attributes.
-
-=cut
-
-sub attributes { shift->meta->attributes }
-
-=head2 unique_attributes
-
-Shortcut for $self->meta->unique_attributes.
-
-=cut
-
-sub unique_attributes { shift->meta->unique_attributes }
-
-=head2 base_dn
-
-Shortcut for $self->meta->base_dn.
-
-=cut
-
-sub base_dn { shift->meta->base_dn }
 
 =head2 init_ldap
 
@@ -282,7 +259,7 @@ sub find {
         croak "must indicate base_dn in opts or call as object method";
     }
 
-    my $attr = delete $opts{attrs} || $self->meta->attributes;
+    my $attr = delete $opts{attrs} || $self->attributes;
 
     my $msg = $ldap->search(
         base  => $base,
@@ -318,7 +295,7 @@ sub create {
         croak
             "at least one unique attribute must be set in order to create()";
     }
-    my @action = $self->action_for_create or return;
+    my @action = $self->action_for_create(@_) or return;
     $self->do_batch(@action);
     $self->read or croak "cannot read newly created $self";
     return $self;
@@ -372,14 +349,14 @@ sub read {
     }
 
     my $base_dn = delete $opts{base_dn} || $self->base_dn;
-    
+
     $self->debug && warn "read() within $base_dn : $filter=$value\n";
 
     my $msg = $self->ldap->search(
         base   => $base_dn,
         scope  => "sub",
         filter => "($filter=$value)",
-        attrs  => $self->meta->attributes,
+        attrs  => $self->attributes,
     );
 
     if ( $msg->count() > 0 ) {
@@ -430,7 +407,7 @@ sub update {
     unless ( $self->ldap_entry ) {
         croak "can't update() without first having a Net::LDAP::Entry loaded";
     }
-    my @action = $self->action_for_update or return;
+    my @action = $self->action_for_update(@_) or return;
 
     # clear, since action_for_update() has already used them.
     $self->{_was_set} = {};
@@ -467,8 +444,8 @@ Returns the object in any case.
 
 sub read_or_create {
     my $self = shift;
-    if ( !$self->read ) {
-        $self->create;
+    if ( !$self->read(@_) ) {
+        $self->create(@_);
     }
     return $self;
 }

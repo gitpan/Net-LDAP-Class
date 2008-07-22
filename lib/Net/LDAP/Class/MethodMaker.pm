@@ -5,7 +5,7 @@ use base qw( Rose::Object::MakeMethods::Generic );
 use Carp;
 use Data::Dump;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 =head1 NAME
 
@@ -154,12 +154,12 @@ sub ldap_entry {
             }
 
             # otherwise, delegate to the ldap_entry
-            unless ( grep { $_ eq $attribute } @{ $self->attributes } ) {
-                croak
-                    qq[no such attribute or method "$attribute" defined for package "]
-                    . ref($self)
-                    . qq[ -- do you need to add '$attribute' to your setup() call?"];
-            }
+            #unless ( grep { $_ eq $attribute } @{ $self->attributes } ) {
+#                croak
+#                    qq[no such attribute or method "$attribute" defined for package "]
+#                    . ref($self)
+#                    . qq[ -- do you need to add '$attribute' to your setup() call?"];
+#            }
 
             if ( scalar @args ) {
 
@@ -189,6 +189,43 @@ sub ldap_entry {
     else {
         croak "Unknown interface: $interface";
     }
+
+    return \%methods;
+}
+
+=head2 object_or_class_meta
+
+Similar to the 'scalar --get-set-init' method type but may be called as a class method,
+in which case it will call through to the class meta() object.
+
+=cut
+
+sub object_or_class_meta {
+    my ( $class, $name, $args ) = @_;
+
+    my %methods;
+    my $key         = $args->{'hash_key'}    || $name;
+    my $init_method = $args->{'init_method'} || "init_$name";
+
+    $methods{$name} = sub {
+        if ( ref( $_[0] ) ) {
+            return $_[0]->{$key} = $_[1] if ( @_ > 1 );
+
+            if ( $_[0]->can($init_method) ) {
+                return defined $_[0]->{$key}
+                    ? $_[0]->{$key}
+                    : ( $_[0]->{$key} = $_[0]->$init_method() );
+            }
+            else {
+                return defined $_[0]->{$key}
+                    ? $_[0]->{$key}
+                    : ( $_[0]->{$key} = $_[0]->meta->$key );
+            }
+        }
+        else {
+            return $_[0]->meta->$key;
+        }
+    };
 
     return \%methods;
 }

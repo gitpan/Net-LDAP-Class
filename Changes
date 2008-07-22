@@ -17,3 +17,16 @@ Revision history for Net-LDAP-Class
           leftover places.
         * add Active Directory classes for User and Group
 
+0.05    22 July 2008
+        * switch logic for AD User/Group to use Group->member as primary
+          setting.
+        * add a bunch of AD User attributes
+        * get AD password set working
+        * new object_or_meta_class() method type; switch attributes(),
+          base_dn() and unique_attribues() in base Class to use it instead
+          of defaulting to meta->$name. This means you can override any of 
+          those values per-object, but they default to those set in the object
+          class meta object.
+
+
+

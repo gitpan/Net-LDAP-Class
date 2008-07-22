@@ -5,7 +5,7 @@ use base qw( Net::LDAP::Class::Group );
 use Carp;
 use Data::Dump ();
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 =head1 NAME
 
@@ -18,7 +18,7 @@ Net::LDAP::Class::Group::AD - Active Directory group class
  use base qw( Net::LDAP::Class::Group::AD );
  
  __PACKAGE__->meta->setup(
-     base_dn             => 'dc=mycompany,dc=com',
+    base_dn             => 'dc=mycompany,dc=com',
     attributes          => __PACKAGE__->AD_attributes,
     unique_attributes   => __PACKAGE__->AD_unique_attributes,
  );
@@ -129,8 +129,16 @@ sub fetch_secondary_users {
     my @users;
     for my $dn (@members) {
         my ($cn) = ( $dn =~ m/^cn=([^,]+),/i );
-        my $user = $user_class->new( cn => $cn, ldap => $self->ldap )->read;
-        push( @users, $user );
+        my $user = $user_class->new(
+            distinguishedName => $dn,
+            ldap              => $self->ldap
+        )->read;
+        if ($user) {
+            push( @users, $user );
+        }
+        else {
+            croak "can't find user $cn ($dn) via LDAP";
+        }
     }
     return wantarray ? @users : \@users;
 }
@@ -161,7 +169,7 @@ sub action_for_create {
 
     my @actions = (
         add => [
-            {   dn   => "CN=$name,CN=Users," . $self->base_dn,
+            {   dn   => "CN=$name," . $self->base_dn,
                 attr => [
                     objectClass => [ 'top', 'group' ],
                     cn          => $name,
@@ -184,12 +192,64 @@ sub action_for_update {
     my $self = shift;
     my %opts = @_;
 
-    if ( !grep { exists $self->{_was_set}->{$_} } @{ $self->attributes } ) {
-        warn "no attributes have changed for group $self. Skipping update().";
-        return 1;
-    }
+    my $base_dn = delete $opts{base_dn} || $self->base_dn;
 
     my @actions;
+
+    # users get translated to 'member' attribute
+    if ( exists $self->{users} ) {
+
+        my @names;
+        for my $user ( @{ delete $self->{users} } ) {
+            my $dn = $user->ldap_entry->dn;
+            push @names, $dn;
+        }
+        $self->member( \@names );    # should trigger _was_set below
+
+    }
+
+    # which fields have changed.
+    my %replace;
+    for my $attr ( keys %{ $self->{_was_set} } ) {
+
+        next if $attr eq 'cn';                   # part of DN
+        next if $attr eq 'objectSID';            # set by server
+        next if $attr eq 'primaryGroupToken';    # set by server
+
+        my $old = $self->{_was_set}->{$attr}->{old};
+        my $new = $self->{_was_set}->{$attr}->{new};
+
+        if ( defined($old) and !defined($new) ) {
+            $replace{$attr} = undef;
+        }
+        elsif ( !defined($old) and defined($new) ) {
+            $replace{$attr} = $new;
+        }
+        elsif ( !defined($old) and !defined($new) ) {
+
+            #$replace{$attr} = undef;
+        }
+        elsif ( $old ne $new ) {
+            $replace{$attr} = $new;
+        }
+
+    }
+
+    if (%replace) {
+        my $cn = $self->name;
+        push(
+            @actions,
+            update => {
+                search => [
+                    base   => $base_dn,
+                    scope  => "sub",
+                    filter => "(cn=$cn)",
+                    attrs  => $self->meta->attributes,
+                ],
+                replace => \%replace
+            }
+        );
+    }
 
     if ( exists $self->{_was_set}->{cn} ) {
 
@@ -205,8 +265,6 @@ sub action_for_update {
             = $class->new( ldap => $self->ldap, cn => $old_name )->read
             or croak "can't find $old_name in LDAP";
 
-        # TODO must be change 'memberOf' attributes for all related users?
-
         # two steps since cn is part of the dn.
         # first, create a new group with the new name
         push( @actions, $self->action_for_create( cn => $new_name ) );
@@ -214,6 +272,11 @@ sub action_for_update {
         # second, delete the old group.
         push( @actions, $self->action_for_delete( cn => $old_name ) );
 
+    }
+
+    if ( !@actions ) {
+        warn "no attributes have changed for group $self. Skipping update().";
+        return @actions;
     }
 
     return @actions;
@@ -248,7 +311,7 @@ sub action_for_delete {
 
     my @actions = (
         {   search => [
-                base   => 'CN=Users,' . $group->base_dn,
+                base   => $group->base_dn,
                 scope  => 'sub',
                 filter => "(cn=$name)",
                 attrs  => $group->meta->attributes,
@@ -257,6 +320,62 @@ sub action_for_delete {
     );
 
     return ( delete => \@actions );
+}
+
+=head2 add_user( I<user_object> )
+
+Push I<user_object> onto the list of member() DNs, checking
+that I<user_object> is not already on the list.
+
+=cut
+
+sub add_user {
+    my $self = shift;
+    my $user = shift;
+    if ( !$user or !ref($user) or !$user->isa('Net::LDAP::Class::User::AD') )
+    {
+        croak "Net::LDAP::Class::User::AD object required";
+    }
+    unless ( $user->username ) {
+        croak
+            "User object must have at least a username before adding to group $self";
+    }
+    my @users = @{ $self->secondary_users || [] };
+    for my $u (@users) {
+
+        #warn "User $u is in group $self";
+        if ( $user->username eq $u->username ) {
+            croak "User $user is already a member of group $self";
+        }
+    }
+    push( @users, $user );
+    $self->{users} = \@users;
+}
+
+=head2 remove_user( I<user_object> )
+
+Drop I<user_object> from the list of member() DNs, checking
+that I<user_object> is already on the list.
+
+=cut
+
+sub remove_user {
+    my $self = shift;
+    my $user = shift;
+    if ( !$user or !ref($user) or !$user->isa('Net::LDAP::Class::User::AD') )
+    {
+        croak "Net::LDAP::Class::User::AD object required";
+    }
+    unless ( $user->username ) {
+        croak
+            "User object must have at least a username before removing from group $self";
+    }
+    my %users = map { $_->username => $_ } @{ $self->secondary_users || [] };
+    if ( !exists $users{ $user->username } ) {
+        croak "User $user is not a member of group $self";
+    }
+    delete $users{ $user->username };
+    $self->{users} = [ values %users ];
 }
 
 1;

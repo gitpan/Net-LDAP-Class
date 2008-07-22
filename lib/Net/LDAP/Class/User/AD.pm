@@ -10,7 +10,7 @@ use Rose::Object::MakeMethods::Generic (
     'scalar --get_set_init' => [qw( default_home_dir default_email_suffix )],
 );
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 =head1 NAME
 
@@ -63,20 +63,30 @@ similarity to the POSIX schema.
 sub AD_attributes {
     [   qw(
             accountExpires
+            adminCount
             canonicalName
             cn
+            codePage
+            countryCode
             description
             displayName
+            distinguishedName
             givenName
             groupAttributes
             homeDirectory
             homeDrive
+            instanceType
+            lastLogoff
+            lastLogon
+            logonCount
             mail
             memberOf
             middleName
             modifyTimeStamp
+            name
             notes
             objectClass
+            objectGUID
             objectSID
             primaryGroupID
             profilePath
@@ -86,6 +96,12 @@ sub AD_attributes {
             sn
             uid
             unicodePwd
+            userAccountControl
+            userPrincipalName
+            uSNChanged
+            uSNCreated
+            whenCreated
+            whenChanged
             )
     ];
 }
@@ -97,7 +113,7 @@ Returns array ref of unique Active Directory attributes.
 =cut
 
 sub AD_unique_attributes {
-    [qw( sAMAccountName cn objectSID )];
+    [qw( sAMAccountName distinguishedName objectSID )];
 }
 
 =head1 OBJECT METHODS
@@ -262,8 +278,30 @@ sub _encode_pass {
         return $pass;
     }
 
-    my $npass = encode( "UTF-16", "\"$pass\"", 1 );
+    # this does not work as expected.
+    #my $npass = encode( "UTF-16", "\"$pass\"", 1 );
+
+    # this works
+    my $npass = '';
+    map { $npass .= "$_\000" } split( //, "\"$pass\"" );
+
     return $npass;
+}
+
+sub _decode_pass {
+    my $self = shift;
+    my $pass = shift or croak "password required";
+    if ( $pass !~ m/^"/ and !_is_utf16($pass) ) {
+        return $pass;
+    }
+
+    my $decoded = '';
+    for my $char ( split( //, $pass ) ) {
+        $char =~ s/\000$//;
+        $decoded .= $char;
+    }
+
+    return $decoded;
 }
 
 =head2 action_for_create([ sAMAccountName => I<username> ])
@@ -280,13 +318,14 @@ sub action_for_create {
     my %opts     = @_;
     my $username = delete $opts{sAMAccountName} || $self->sAMAccountName
         or croak "sAMAccountName required to create()";
+    my $base_dn = delete $opts{base_dn} || $self->base_dn;
 
-    my ( $group, $gid, $givenName, $sn, $cn, $email, $pass )
+    my ( $group, $gid, $givenName, $sn, $cn, $email )
         = $self->setup_for_write;
 
     my @actions = (
         add => {
-            dn   => "CN=$cn,CN=Users," . $self->base_dn,
+            dn   => "CN=$cn," . $base_dn,
             attr => [
                 objectClass =>
                     [ "top", "person", "organizationalPerson", "user" ],
@@ -297,20 +336,49 @@ sub action_for_create {
                 cn             => $cn,
                 homeDirectory  => $self->default_home_dir . "\\$username",
                 mail           => $email,
-                unicodePwd     => $pass,
             ],
         }
     );
 
     push( @{ $actions[1]->{attr} }, primaryGroupID => $gid ) if $gid;
 
+    # set password if not set.
+    # this is useful for default random passwords.
+    # must do this as second update action rather than in initial add
+    # due to AD security restriction.
+    my $pass = $self->password || $self->random_string(10);
+    $pass = $self->_encode_pass($pass);
+
+# the 512 userAccountControl value indicates to AD
+# that a password is required.
+# see
+# http://www.sysoptools.com/support/files/Fixing%20user%20accounts%20flagged%20as%20system%20accounts%20-%20the%20UserAccountControl%20AD%20attribute.doc
+    push(
+        @actions,
+        update => {
+            search => [
+                base   => "CN=$cn," . $base_dn,
+                scope  => 'sub',
+                filter => "(CN=$cn)",
+                attrs  => $self->attributes
+            ],
+            replace => { unicodePwd => $pass, userAccountControl => 512 },
+        }
+    );
+
     # groups
     if ( exists $self->{groups} ) {
         my @names;
         for my $group ( @{ $self->{groups} } ) {
-            my $group_name = $group->name;
-            my $group_dn   = $group->base_dn;
-            push( @names, "CN=$group_name,CN=Users,$group_dn" );
+            eval { $group->add_user($self); };
+            if ($@) {
+                if ( $@ =~ m/already/ ) {
+                    next;
+                }
+                else {
+                    croak $@;
+                }
+            }
         }
         push( @{ $actions[1]->{attr} }, memberOf => \@names );
     }
@@ -326,7 +394,7 @@ and action_for_update().
 
 Returns array of values in this order:
 
- $groupname, $gid, $givenName, $sn, $cn, $email, $password
+ $groupname, $gid, $givenName, $sn, $cn, $email
 
 =cut
 
@@ -365,12 +433,7 @@ sub setup_for_write {
 
     my $email = $self->mail || $self->username . $self->default_email_suffix;
 
-    # set password if not set.
-    # this is useful for default random passwords.
-    my $pass = $self->unicodePwd || $self->random_string(10);
-    $pass = $self->_encode_pass($pass);
-
-    return ( $group, $gid, $givenName, $sn, $cn, $email, $pass );
+    return ( $group, $gid, $givenName, $sn, $cn, $email );
 }
 
 =head2 action_for_update
@@ -381,12 +444,14 @@ Returns array ref suitable for creating a Net::LDAP::Batch::Action::Update.
 
 sub action_for_update {
     my $self     = shift;
-    my %opts     = @_;                # currently unused
+    my %opts     = @_;
     my $username = $self->username;
 
     unless ($username) {
         croak "must have sAMAccountName set to update";
     }
+
+    my $base_dn = delete $opts{base_dn} || $self->base_dn;
 
     my @actions;
 
@@ -448,14 +513,65 @@ sub action_for_update {
     # check if any have been set explicitly,
     # since otherwise there is nothing to be done.
     if ( exists $self->{groups} ) {
-        my @names;
-        for my $group ( @{ $self->{groups} } ) {
-            my $group_name = $group->name;
-            my $group_dn   = $group->base_dn;
-            push( @names, "CN=$group_name,CN=Users,$group_dn" );
+
+        #carp Data::Dump::dump $self->{groups};
+
+        my $existing_groups = $self->fetch_groups;
+
+        #carp Data::Dump::dump $existing_groups;
+
+        my %existing = map { $_->cn => $_ } @$existing_groups;
+
+        # the delete $self->{groups} has helpful side effect of clearing
+        # cache.
+        my %new = map { $_->cn => $_ } @{ delete $self->{groups} };
+
+        # which should be added
+        my @to_add;
+        for my $cn ( keys %new ) {
+            if ( !exists $existing{$cn} ) {
+                my $group = $new{$cn};
+
+                #warn "add_user $self to group $group";
+                eval { $group->add_user($self) };
+
+                #warn "\$\@ = $@";
+                if ($@) {
+                    if ( $@ =~ m/already a member/ ) {
+
+                        # add_user already called
+                        next;
+                    }
+                    else {
+                        croak $@;
+                    }
+                }
+                push( @to_add, $group->action_for_update );
+            }
         }
-        delete $self->{groups};
-        $replace{memberOf} = \@names;
+
+        # which should be removed
+        my @to_rm;
+        for my $cn ( keys %existing ) {
+            if ( !exists $new{$cn} ) {
+                my $group = $existing{$cn};
+                eval { $group->remove_user($self) };
+                if ($@) {
+                    if ( $@ =~ m/not a member/ ) {
+
+                        # remove_user already called
+                        next;
+                    }
+                    else {
+                        croak $@;
+                    }
+                }
+                push( @to_rm, $group->action_for_update );
+            }
+        }
+
+        push( @actions, @to_add, @to_rm );
+
     }
 
     if (%replace) {
@@ -463,7 +579,7 @@ sub action_for_update {
             @actions,
             update => {
                 search => [
-                    base   => "CN=Users," . $self->base_dn,
+                    base   => $base_dn,
                     scope  => "sub",
                     filter => "(sAMAccountName=$username)",
                     attrs  => $self->meta->attributes,
@@ -487,7 +603,7 @@ sub action_for_update {
 
 =head2 action_for_delete
 
-Returns hash ref suitable for creating a Net::LDAP::Batch::Action::Delete.
+Returns action suitable for creating a Net::LDAP::Batch::Action::Delete.
 
 =cut
 
@@ -498,6 +614,8 @@ sub action_for_delete {
         || delete $opts{username}
         || $self->username;
 
+    my $base_dn = delete $opts{base_dn} || $self->base_dn;
+
     if ( !$username ) {
         croak "username required to delete a User";
     }
@@ -506,7 +624,7 @@ sub action_for_delete {
     my @actions = (
         delete => {
             search => [
-                base   => "CN=Users," . $self->base_dn,
+                base   => $base_dn,
                 scope  => "sub",
                 filter => "(sAMAccountName=$username)",
                 attrs  => $self->meta->attributes,

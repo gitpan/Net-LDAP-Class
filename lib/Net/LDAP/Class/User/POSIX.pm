@@ -9,7 +9,7 @@ use base qw( Net::LDAP::Class::User );
 use Rose::Object::MakeMethods::Generic ( 'scalar --get_set_init' =>
         [qw( default_shell default_home_dir default_email_suffix )], );
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 # see http://www.ietf.org/rfc/rfc2307.txt
 
