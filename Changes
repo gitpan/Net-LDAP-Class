@@ -28,5 +28,8 @@ Revision history for Net-LDAP-Class
           those values per-object, but they default to those set in the object
           class meta object.
 
+0.06    23 July 2008
+        * simplify encoding/decoding of AD password (no Encode required)
+
 
 

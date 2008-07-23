@@ -4,13 +4,12 @@ use warnings;
 use base qw( Net::LDAP::Class::User );
 use Carp;
 use Data::Dump ();
-use Encode;
 
 use Rose::Object::MakeMethods::Generic (
     'scalar --get_set_init' => [qw( default_home_dir default_email_suffix )],
 );
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 =head1 NAME
 
@@ -262,11 +261,12 @@ sub password {
     return $self->ldap_entry->get_value($attribute);
 }
 
-sub _is_utf16 {
+sub _is_encoded {
     my $str = shift;
-    my $octets;
-    eval { $octets = encode( "UTF-16", $str, 1 ); };
-    return $@ ? 0 : 1;
+    if ( $str =~ m/^"\000.+"\000$/ ) {
+        return 1;
+    }
+    return 0;
 }
 
 sub _encode_pass {
@@ -274,14 +274,10 @@ sub _encode_pass {
     my $pass = shift or croak "password required";
 
     # detect if password is already encoded and do not double encode
-    if ( $pass =~ m/^"/ and _is_utf16($pass) ) {
+    if ( _is_encoded($pass) ) {
         return $pass;
     }
 
-    # this does not work as expected.
-    #my $npass = encode( "UTF-16", "\"$pass\"", 1 );
-
-    # this works
     my $npass = '';
     map { $npass .= "$_\000" } split( //, "\"$pass\"" );
 
@@ -291,7 +287,7 @@ sub _encode_pass {
 sub _decode_pass {
     my $self = shift;
     my $pass = shift or croak "password required";
-    if ( $pass !~ m/^"/ and !_is_utf16($pass) ) {
+    if ( !_is_encoded($pass) ) {
         return $pass;
     }
 
@@ -300,6 +296,7 @@ sub _decode_pass {
         $char =~ s/\000$//;
         $decoded .= $char;
     }
+    $decoded =~ s/^"|"$//g;
 
     return $decoded;
 }

@@ -4,7 +4,7 @@ use warnings;
 use Carp;
 use base qw( Net::LDAP::Class::Group );
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 my $RESERVED_GID = 999999;    # used when renaming groups
 
