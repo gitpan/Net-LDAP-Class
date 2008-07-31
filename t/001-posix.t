@@ -150,6 +150,6 @@ ok( $user->update, "save changes to group undo" );
 
 cmp_ok( $group->gid, '==', $user->gid, "prim group changed" );
 
-ok( !$user->groups, "no secondary groups" );
+ok( !@{ $user->groups }, "no secondary groups" );
 ok( !@{ $group->fetch_secondary_users }, "no secondary users" );
 

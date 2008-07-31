@@ -9,7 +9,7 @@ use Net::LDAP::Class::MethodMaker (
 
 );
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 =head1 NAME
 
@@ -59,8 +59,7 @@ sub users {
     if (@_) {
         croak "users() is an accessor (getter) only";
     }
-    my @users = ( @{ $self->primary_users || [] },
-        @{ $self->secondary_users || [] } );
+    my @users = ( @{ $self->primary_users }, @{ $self->secondary_users } );
     return wantarray ? @users : \@users;
 }
 

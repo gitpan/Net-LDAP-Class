@@ -8,7 +8,7 @@ use Net::LDAP::Class::MethodMaker (
     'related_objects'       => [qw( group groups )],
 );
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 =head1 NAME
 
@@ -63,7 +63,7 @@ sub add_to_group {
     if ( !$group->ldap_entry ) {
         croak "Group should be read() prior to adding User $self as a member";
     }
-    my @groups = @{ $self->groups || [] };
+    my @groups = @{ $self->groups };
     my $uniq_method;
     for my $g (@groups) {
         $uniq_method ||= $g->unique_attributes->[0];
@@ -94,7 +94,7 @@ sub remove_from_group {
         croak
             "Group should be read() prior to removing User $self as a member";
     }
-    my @groups = @{ $self->groups || [] };
+    my @groups = @{ $self->groups };
     my @new;
     my $uniq_method;
     for my $g (@groups) {
@@ -137,13 +137,13 @@ Returns the value of the first unique attribute.
 
 sub username {
     my $self = shift;
-    my $attr = $self->meta->unique_attributes->[0];
+    my $attr = $self->unique_attributes->[0];
     return $self->$attr;
 }
 
 =head2 random_string([I<len>])
 
-Returns a random alphanumeric string of length I<len> (default: 8).
+Returns a random alphanumeric string of length I<len> (default: 10).
 
 =cut
 
@@ -155,25 +155,34 @@ my @charset = (
 
 sub random_string {
     my $self = shift;
-    my $len = shift || 8;
-
+    my $len = shift || 10;
+    
     # set random seed
     my ( $usert, $system, $cuser, $csystem ) = times;
     srand( ( $$ ^ $usert ^ $system ^ time ) );
 
     # select characters
-    # retry until we get at least one non-alpha char
+    # retry until we get at least:
+    #  * one UPPER
+    #  * one lower
+    #  * one \d
+    #  * one \W
+
     my @chars;
-    do {
+    my $str = '';
+    until ($str =~ /\d/
+        && $str =~ /[A-Z]/
+        && $str =~ /[a-z]/
+        && $str =~ /\W/ )
+    {
         @chars = ();
         for ( my $i = 0; $i <= ( $len - 1 ); $i++ ) {
             $chars[$i] = $charset[ int( rand($#charset) + 1 ) ];
         }
-    } until ( grep /[123456789\.:\^\?@\(]/, @chars );
+        $str = join( '', @chars );
+    }
 
-    # pack characters into scalar
-    my $tmp_passwd = pack( 'a' x $len, @chars );
-    return $tmp_passwd;
+    return $str;
 }
 
 1;

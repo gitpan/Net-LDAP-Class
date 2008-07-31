@@ -6,10 +6,10 @@ use Data::Dump qw( dump );
 use Digest::SHA1;
 use MIME::Base64;
 use base qw( Net::LDAP::Class::User );
-use Rose::Object::MakeMethods::Generic ( 'scalar --get_set_init' =>
+use Net::LDAP::Class::MethodMaker ( 'scalar --get_set_init' =>
         [qw( default_shell default_home_dir default_email_suffix )], );
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 # see http://www.ietf.org/rfc/rfc2307.txt
 
@@ -176,7 +176,7 @@ sub action_for_create {
                     base   => "ou=Group,$group_dn",
                     scope  => "sub",
                     filter => "(cn=$group_name)",
-                    attrs  => $group->meta->attributes,
+                    attrs  => $group->attributes,
                 ],
                 replace => { memberUid => [@newUids] }
             };
@@ -314,7 +314,7 @@ sub action_for_update {
                     base   => "ou=People," . $self->base_dn,
                     scope  => "sub",
                     filter => "(uid=$username)",
-                    attrs  => $self->meta->attributes,
+                    attrs  => $self->attributes,
                 ],
                 replace => \%replace
             }
@@ -339,7 +339,7 @@ sub action_for_update {
                         base   => "ou=People," . $self->base_dn,
                         scope  => "sub",
                         filter => "(uid=$username)",
-                        attrs  => $self->meta->attributes,
+                        attrs  => $self->attributes,
                     ],
                     replace => { gidNumber => $self->group->gidNumber },
                 },
@@ -353,7 +353,7 @@ sub action_for_update {
                         base   => "ou=People," . $self->base_dn,
                         scope  => "sub",
                         filter => "(uid=$username)",
-                        attrs  => $self->meta->attributes,
+                        attrs  => $self->attributes,
                     ],
                 }
             ],
@@ -371,7 +371,7 @@ sub action_for_update {
 
         my $existing_groups = $self->fetch_groups;
         my %existing = map { $_->gidNumber => $_ } @$existing_groups;
-        
+
         # the delete $self->{groups} has helpful side effect of clearing
         # cache.
         my %new = map { $_->gidNumber => $_ } @{ delete $self->{groups} };
@@ -388,7 +388,7 @@ sub action_for_update {
                         base   => "ou=Group,$group_dn",
                         scope  => "one",
                         filter => "(cn=$group_name)",
-                        attrs  => $new{$gid}->meta->attributes,
+                        attrs  => $new{$gid}->attributes,
                     ],
                     replace => { memberUid => [@newUids] }
                 };
@@ -409,7 +409,7 @@ sub action_for_update {
                         base   => "ou=Group,$group_dn",
                         scope  => "one",
                         filter => "(cn=$group_name)",
-                        attrs  => $existing{$gid}->meta->attributes,
+                        attrs  => $existing{$gid}->attributes,
                     ],
                     replace => { memberUid => [@newUids] }
                 };
@@ -458,7 +458,7 @@ sub action_for_delete {
                 base   => "ou=People," . $self->base_dn,
                 scope  => "sub",
                 filter => "(uid=$username)",
-                attrs  => $self->meta->attributes,
+                attrs  => $self->attributes,
             ]
         }
     );
@@ -499,13 +499,14 @@ group_class().
 =cut
 
 sub fetch_groups {
-    my $self = shift;
+    my $self  = shift;
     my $class = $self->group_class or croak "group_class() required";
-    return $class->find(
+    my @g     = $class->find(
         ldap    => $self->ldap,
         base_dn => 'ou=Group,' . $self->group->base_dn,
         filter  => "(memberUid=" . $self->uid . ")",
     );
+    return wantarray ? @g : \@g;
 }
 
 =head2 gid

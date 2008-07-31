@@ -5,7 +5,7 @@ use base qw( Net::LDAP::Class::Group );
 use Carp;
 use Data::Dump ();
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 =head1 NAME
 
@@ -56,6 +56,7 @@ sub AD_attributes {
             canonicalName
             cn
             description
+            distinguishedName
             info
             member
             primaryGroupToken
@@ -74,7 +75,7 @@ Returns array ref of unique Active Directory attributes.
 =cut
 
 sub AD_unique_attributes {
-    [qw( cn objectSID )];
+    [qw( cn objectSID distinguishedName )];
 }
 
 =head1 OBJECT METHODS
@@ -244,7 +245,7 @@ sub action_for_update {
                     base   => $base_dn,
                     scope  => "sub",
                     filter => "(cn=$cn)",
-                    attrs  => $self->meta->attributes,
+                    attrs  => $self->attributes,
                 ],
                 replace => \%replace
             }
@@ -302,7 +303,10 @@ sub action_for_delete {
 
     # even if called a class method, we need an object
     # in order to find users, etc.
-    my $group = ref($self) ? $self : $self->new( cn => $name )->read;
+    my $group
+        = ref($self)
+        ? $self
+        : $self->new( cn => $name, ldap => $self->ldap )->read;
     if ( !$group ) {
         croak "no such Group to delete: $name";
     }
@@ -314,7 +318,7 @@ sub action_for_delete {
                 base   => $group->base_dn,
                 scope  => 'sub',
                 filter => "(cn=$name)",
-                attrs  => $group->meta->attributes,
+                attrs  => $group->attributes,
             ],
         }
     );
@@ -340,7 +344,7 @@ sub add_user {
         croak
             "User object must have at least a username before adding to group $self";
     }
-    my @users = @{ $self->secondary_users || [] };
+    my @users = @{ $self->secondary_users };
     for my $u (@users) {
 
         #warn "User $u is in group $self";
@@ -370,7 +374,7 @@ sub remove_user {
         croak
             "User object must have at least a username before removing from group $self";
     }
-    my %users = map { $_->username => $_ } @{ $self->secondary_users || [] };
+    my %users = map { $_->username => $_ } @{ $self->secondary_users };
     if ( !exists $users{ $user->username } ) {
         croak "User $user is not a member of group $self";
     }

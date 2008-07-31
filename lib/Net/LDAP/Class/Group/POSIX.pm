@@ -4,7 +4,7 @@ use warnings;
 use Carp;
 use base qw( Net::LDAP::Class::Group );
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 my $RESERVED_GID = 999999;    # used when renaming groups
 
@@ -300,7 +300,7 @@ sub action_for_update {
                             base   => "ou=People," . $user->base_dn,
                             scope  => "sub",
                             filter => "(uid=$uid)",
-                            attrs  => $user->meta->attributes,
+                            attrs  => $user->attributes,
                         ],
                         replace => { gidNumber => $new_gid }
                     },
@@ -314,7 +314,7 @@ sub action_for_update {
                             base   => "ou=People," . $self->base_dn,
                             scope  => "sub",
                             filter => "(uid=$uid)",
-                            attrs  => $self->meta->attributes,
+                            attrs  => $self->attributes,
                         ],
                     }
                 ],
@@ -368,9 +368,9 @@ sub action_for_delete {
 
     if ( scalar @{ $group->users } ) {
         croak "cannot delete Group $group -- it still has members: [primary] "
-            . join( ", ", map {"$_"} @{ $group->primary_users || [] } )
+            . join( ", ", map {"$_"} @{ $group->primary_users } )
             . " [secondary] "
-            . join( ", ", map {"$_"} @{ $group->secondary_users || [] } );
+            . join( ", ", map {"$_"} @{ $group->secondary_users } );
     }
 
     my @actions = (
@@ -378,14 +378,14 @@ sub action_for_delete {
                 base   => 'ou=People,' . $group->base_dn,
                 scope  => 'sub',
                 filter => "(ou=$name)",
-                attrs  => $group->meta->attributes,
+                attrs  => $group->attributes,
             ],
         },
         {   search => [
                 base   => "ou=Group," . $group->base_dn,
                 scope  => "sub",
                 filter => "(cn=$name)",
-                attrs  => $group->meta->attributes,
+                attrs  => $group->attributes,
             ],
         },
 
@@ -407,12 +407,13 @@ sub fetch_primary_users {
     my $self       = shift;
     my $user_class = $self->user_class or croak "user_class() required";
     my $name       = $self->cn;
-    return $user_class->find(
+    my @u          = $user_class->find(
         base_dn => "ou=$name,ou=People," . $self->base_dn,
         scope   => "sub",
         filter  => "(objectClass=posixAccount)",
         ldap    => $self->ldap,
     );
+    return wantarray ? @u : \@u;
 }
 
 =head2 fetch_secondary_users

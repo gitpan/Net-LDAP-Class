@@ -5,11 +5,11 @@ use base qw( Net::LDAP::Class::User );
 use Carp;
 use Data::Dump ();
 
-use Rose::Object::MakeMethods::Generic (
+use Net::LDAP::Class::MethodMaker (
     'scalar --get_set_init' => [qw( default_home_dir default_email_suffix )],
 );
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 =head1 NAME
 
@@ -131,7 +131,7 @@ Returns an object of type group_class().
 sub fetch_group {
     my $self  = shift;
     my $class = $self->group_class or croak "group_class() required";
-    my $gid   = shift || $self->primaryGroupID;
+    my $gid   = shift || $self->gid;
 
     if ( !$gid ) {
         croak "cannot fetch group without a gid (primaryGroupID) set";
@@ -140,23 +140,47 @@ sub fetch_group {
     # because AD does not store primaryGroupToken but computes it,
     # we must do gymnastics using SIDs
     #warn "gid = $gid";
-    my (@unpack) = unpack( "H2 H2 n N V*", $self->objectSID );
-    my ( $sid_rev, $num_auths, $id1, $id2, @ids ) = (@unpack);
 
-    #warn Data::Dump::dump \@unpack;
-    my $user_sid_string
-        = join( "-", "S", $sid_rev, ( $id1 << 32 ) + $id2, @ids );
+    my $user_sid_string = _sid2string( $self->objectSID );
 
     #warn "user_sid_string:  $user_sid_string";
     ( my $group_sid_string = $user_sid_string ) =~ s/\-[^\-]+$/-$gid/;
 
     #warn "group_sid_string: $group_sid_string";
 
-    # get groups too
     return $class->new(
         objectSID => $group_sid_string,
         ldap      => $self->ldap
     )->read;
+}
+
+sub _sid2string {
+    my $sid = shift;
+    my (@unpack) = unpack( "H2 H2 n N V*", $sid );
+    my ( $sid_rev, $num_auths, $id1, $id2, @ids ) = (@unpack);
+    return join( "-", "S", $sid_rev, ( $id1 << 32 ) + $id2, @ids );
+}
+
+sub _string2sid {
+    my $string = shift;
+    my (@split) = split( m/\-/, $string );
+    my ( $prefix, $sid_rev, $auth_id, @ids ) = (@split);
+    if ( $auth_id != scalar(@ids) ) {
+        die "bad string: $string";
+    }
+
+    my $sid = pack( "C4", "$sid_rev", "$auth_id", 0, 0 );
+    $sid .= pack( "C4",
+        ( $auth_id & 0xff000000 ) >> 24,
+        ( $auth_id & 0x00ff0000 ) >> 16,
+        ( $auth_id & 0x0000ff00 ) >> 8,
+        $auth_id & 0x000000ff );
+
+    for my $i (@ids) {
+        $sid .= pack( "I", $i );
+    }
+
+    return $sid;
 }
 
 =head2 fetch_groups
@@ -399,9 +423,9 @@ sub setup_for_write {
     my $self = shift;
 
     my $gid;
-    my $group = $self->{group} || $self->primaryGroupID;
+    my $group = $self->{group} || $self->gid;
     if ($group) {
-        if ( ref $group and $group->isa('Net::LDAP::Class::Group::AD') ) {
+        if ( ref $group and $group->isa('Net::LDAP::Class::Group') ) {
             $gid = $group->gid;
         }
         else {
@@ -579,7 +603,7 @@ sub action_for_update {
                     base   => $base_dn,
                     scope  => "sub",
                     filter => "(sAMAccountName=$username)",
-                    attrs  => $self->meta->attributes,
+                    attrs  => $self->attributes,
                 ],
                 replace => \%replace
             }
@@ -624,7 +648,7 @@ sub action_for_delete {
                 base   => $base_dn,
                 scope  => "sub",
                 filter => "(sAMAccountName=$username)",
-                attrs  => $self->meta->attributes,
+                attrs  => $self->attributes,
             ]
         }
     );

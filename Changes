@@ -31,5 +31,13 @@ Revision history for Net-LDAP-Class
 0.06    23 July 2008
         * simplify encoding/decoding of AD password (no Encode required)
 
+0.07    31 July 2008
+        * refer everywhere internally in ::User::AD to ->gid instead
+          of primaryGroupID() so that the attribute can be disabled in subclasses.
+        * use ->attributes instead of ->meta->attributes everywhere internally
+        * if fetch_* methods return undef from find() then return empty array(ref)
+        * force random_string() to be a little more random
+        * refactor ::User::AD objectSID code into its own functions
+
 
 
