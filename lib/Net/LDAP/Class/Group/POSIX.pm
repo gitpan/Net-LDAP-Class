@@ -4,7 +4,7 @@ use warnings;
 use Carp;
 use base qw( Net::LDAP::Class::Group );
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 my $RESERVED_GID = 999999;    # used when renaming groups
 
@@ -326,8 +326,9 @@ sub action_for_update {
         push(
             @actions,
             $self->action_for_delete(
-                gidNumber => $RESERVED_GID,
-                cn        => $old_name
+                gidNumber  => $RESERVED_GID,
+                cn         => $old_name,
+                skip_check => 1,
             )
         );
 
@@ -362,15 +363,23 @@ sub action_for_delete {
         croak "no such Group to delete: $name";
     }
 
-    # clear first so we re-read from the db
-    $group->clear_primary_users;
-    $group->clear_secondary_users;
+    unless ( $opts{skip_check} ) {
 
-    if ( scalar @{ $group->users } ) {
-        croak "cannot delete Group $group -- it still has members: [primary] "
-            . join( ", ", map {"$_"} @{ $group->primary_users } )
-            . " [secondary] "
-            . join( ", ", map {"$_"} @{ $group->secondary_users } );
+        # set since users() will require it
+        $group->cn($name);
+
+        # clear first so we re-read from the db
+        $group->clear_primary_users;
+        $group->clear_secondary_users;
+
+        if ( scalar @{ $group->users } ) {
+            croak
+                "cannot delete Group $group -- it still has members: [primary] "
+                . join( ", ", map {"$_"} @{ $group->primary_users } )
+                . " [secondary] "
+                . join( ", ", map {"$_"} @{ $group->secondary_users } );
+        }
+
     }
 
     my @actions = (

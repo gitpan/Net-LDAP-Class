@@ -18,7 +18,7 @@ use Net::LDAP::Class::MethodMaker (
 
 use overload '""' => 'stringify';
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 =head1 NAME
 
@@ -76,7 +76,7 @@ uses to great effect for RDBMS management.
 
 =head1 METHODS
 
-NLC uses the Rose::Object package to create methods and handle the mundate get/set features.
+NLC uses the Rose::Object package to create methods and handle the mundane get/set features.
 In addition, Net::LDAP::Class::MethodMaker implements a new method type called B<related_objects>
 which handles the get/set/fetch of NLC objects related to a given NLC object. Typically these
 are Users and Groups. A User is typically related to one or more Groups, and a Group is typically
@@ -266,6 +266,10 @@ sub find {
         attrs => $attr,
         %opts,
     );
+
+    if ( $msg->code ) {
+        croak $self->get_ldap_error($msg);
+    }
 
     my @results;
 

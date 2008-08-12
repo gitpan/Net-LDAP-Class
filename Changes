@@ -39,5 +39,10 @@ Revision history for Net-LDAP-Class
         * force random_string() to be a little more random
         * refactor ::User::AD objectSID code into its own functions
 
+0.08    12 Aug 2008
+        * check return result from Net::LDAP search() in find() and croak on error.
+        * fix bug with action_for_delete() in ::Group::POSIX that manifested
+          when trying to rename a group. New feature is 'skip_check' to skip
+          the sanity check for whether a group still has users.
 
 
