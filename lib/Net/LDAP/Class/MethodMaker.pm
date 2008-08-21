@@ -5,7 +5,7 @@ use base qw( Rose::Object::MakeMethods::Generic );
 use Carp;
 use Data::Dump;
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 =head1 NAME
 
@@ -20,7 +20,7 @@ Net::LDAP::Class::MethodMaker - create methods for Net::LDAP::Class classes
     'related_objects'       => [qw( bars )],
  );
  
- __PACKAGE__->meta->setup(
+ __PACKAGE__->metadata->setup(
     base_dn             => 'dc=local',
     attributes          => [qw( foo )],
     unique_attributes   => [qw( foo )],
@@ -90,7 +90,13 @@ sub related_objects {
     elsif ( $interface eq 'get_set' ) {
         my $fetcher_method = $args->{'fetch_method'} || "fetch_$name";
         $methods{$name} = sub {
-            return $_[0]->{$key} = $_[1] if ( @_ > 1 );
+            if ( @_ > 1 ) {
+                if ( !$_[0]->validate( $key, $_[1] ) ) {
+                    croak "validate failed for attribute $key: "
+                        . $_[0]->error;
+                }
+                return $_[0]->{$key} = $_[1];
+            }
             return exists $_[0]->{$key}
                 ? $_[0]->{$key}
                 : $_[0]->$fetcher_method;
@@ -153,8 +159,8 @@ sub ldap_entry {
 
             }
 
-            # otherwise, delegate to the ldap_entry
-            #unless ( grep { $_ eq $attribute } @{ $self->attributes } ) {
+# otherwise, delegate to the ldap_entry
+#unless ( grep { $_ eq $attribute } @{ $self->attributes } ) {
 #                croak
 #                    qq[no such attribute or method "$attribute" defined for package "]
 #                    . ref($self)
@@ -162,6 +168,11 @@ sub ldap_entry {
 #            }
 
             if ( scalar @args ) {
+
+                if ( !$self->validate( $attribute, $args[0] ) ) {
+                    croak "validate failed for attribute $attribute: "
+                        . $self->error;
+                }
 
                 #warn "AUTOLOAD set $attribute -> $args[0]";
                 my @old = $self->ldap_entry->get_value($attribute);
@@ -196,7 +207,7 @@ sub ldap_entry {
 =head2 object_or_class_meta
 
 Similar to the 'scalar --get-set-init' method type but may be called as a class method,
-in which case it will call through to the class meta() object.
+in which case it will call through to the class metadata() object.
 
 =cut
 
@@ -219,11 +230,11 @@ sub object_or_class_meta {
             else {
                 return defined $_[0]->{$key}
                     ? $_[0]->{$key}
-                    : ( $_[0]->{$key} = $_[0]->meta->$key );
+                    : ( $_[0]->{$key} = $_[0]->metadata->$key );
             }
         }
         else {
-            return $_[0]->meta->$key;
+            return $_[0]->metadata->$key;
         }
     };
 

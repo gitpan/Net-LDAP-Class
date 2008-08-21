@@ -9,7 +9,7 @@ use base qw( Net::LDAP::Class::User );
 use Net::LDAP::Class::MethodMaker ( 'scalar --get_set_init' =>
         [qw( default_shell default_home_dir default_email_suffix )], );
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 # see http://www.ietf.org/rfc/rfc2307.txt
 
@@ -23,7 +23,7 @@ Net::LDAP::Class::User::POSIX - user class for POSIX LDAP schema
  package MyLDAPUser;
  use base qw( Net::LDAP::Class::User::POSIX );
  
- __PACKAGE__->meta->setup(
+ __PACKAGE__->metadata->setup(
     base_dn             => 'dc=mycompany,dc=com',
     attributes          => __PACKAGE__->POSIX_attributes,
     unique_attributes   => __PACKAGE__->POSIX_unique_attributes,

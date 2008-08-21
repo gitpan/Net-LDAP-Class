@@ -22,7 +22,7 @@ ok( my $ldap = Net::LDAP->new(
     package MyLDAPUser;
     use base 'Net::LDAP::Class::User::AD';
 
-    __PACKAGE__->meta->setup(
+    __PACKAGE__->metadata->setup(
         base_dn           => 'dc=test,dc=local',
         attributes        => __PACKAGE__->AD_attributes,
         unique_attributes => __PACKAGE__->AD_unique_attributes,
@@ -37,7 +37,7 @@ ok( my $ldap = Net::LDAP->new(
     package MyLDAPGroup;
     use base 'Net::LDAP::Class::Group::AD';
 
-    __PACKAGE__->meta->setup(
+    __PACKAGE__->metadata->setup(
         base_dn           => 'dc=test,dc=local',
         attributes        => __PACKAGE__->AD_attributes,
         unique_attributes => __PACKAGE__->AD_unique_attributes,

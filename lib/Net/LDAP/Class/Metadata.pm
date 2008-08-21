@@ -6,7 +6,7 @@ use base qw( Rose::Object );
 use Clone ();
 use Net::LDAP::Class::Loader;
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 #
 # much of this stolen verbatim from RDBO::Metadata
@@ -42,7 +42,7 @@ Net::LDAP::Class::Metadata - LDAP class metadata
  use strict;
  use base qw( Net::LDAP::Class );
  
- __PACKAGE__->meta->setup(
+ __PACKAGE__->metadata->setup(
     base_dn             => 'dc=mycompany,dc=local',
     attributes          => [qw( name phone email )],
     unique_attributes   => [qw( email )],
@@ -166,7 +166,7 @@ sub clone {
 =head2 for_class( I<class_name> )
 
 Returns a Metadata object for I<class_name>. Used primarily
-by the meta() method in Net::LDAP::Class.
+by the metadata() method in Net::LDAP::Class.
 
 =cut
 

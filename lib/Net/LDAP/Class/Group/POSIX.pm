@@ -4,7 +4,7 @@ use warnings;
 use Carp;
 use base qw( Net::LDAP::Class::Group );
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 my $RESERVED_GID = 999999;    # used when renaming groups
 
@@ -20,7 +20,7 @@ Net::LDAP::Class::Group::POSIX - group class for POSIX LDAP schema
  package MyLDAPGroup;
  use base qw( Net::LDAP::Class::Group::POSIX );
  
- __PACKAGE__->meta->setup(
+ __PACKAGE__->metadata->setup(
      base_dn             => 'dc=mycompany,dc=com',
     attributes          => __PACKAGE__->POSIX_attributes,
     unique_attributes   => __PACKAGE__->POSIX_unique_attributes,

@@ -5,7 +5,7 @@ use base qw( Net::LDAP::Class::Group );
 use Carp;
 use Data::Dump ();
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 =head1 NAME
 
@@ -17,7 +17,7 @@ Net::LDAP::Class::Group::AD - Active Directory group class
  package MyLDAPGroup;
  use base qw( Net::LDAP::Class::Group::AD );
  
- __PACKAGE__->meta->setup(
+ __PACKAGE__->metadata->setup(
     base_dn             => 'dc=mycompany,dc=com',
     attributes          => __PACKAGE__->AD_attributes,
     unique_attributes   => __PACKAGE__->AD_unique_attributes,

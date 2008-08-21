@@ -23,7 +23,7 @@ ok( my $ldap = Net::LDAP->new(
     package MyLDAPUser;
     use base 'Net::LDAP::Class::User::POSIX';
 
-    __PACKAGE__->meta->setup(
+    __PACKAGE__->metadata->setup(
         base_dn           => 'dc=test,dc=local',
         attributes        => __PACKAGE__->POSIX_attributes,
         unique_attributes => __PACKAGE__->POSIX_unique_attributes,
@@ -38,7 +38,7 @@ ok( my $ldap = Net::LDAP->new(
     package MyLDAPGroup;
     use base 'Net::LDAP::Class::Group::POSIX';
 
-    __PACKAGE__->meta->setup(
+    __PACKAGE__->metadata->setup(
         base_dn           => 'dc=test,dc=local',
         attributes        => __PACKAGE__->POSIX_attributes,
         unique_attributes => __PACKAGE__->POSIX_unique_attributes,
@@ -150,6 +150,6 @@ ok( $user->update, "save changes to group undo" );
 
 cmp_ok( $group->gid, '==', $user->gid, "prim group changed" );
 
-ok( !@{ $user->groups }, "no secondary groups" );
+ok( !@{ $user->groups },                 "no secondary groups" );
 ok( !@{ $group->fetch_secondary_users }, "no secondary users" );
 

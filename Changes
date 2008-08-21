@@ -45,4 +45,9 @@ Revision history for Net-LDAP-Class
           when trying to rename a group. New feature is 'skip_check' to skip
           the sanity check for whether a group still has users.
 
+0.09    21 Aug 2008
+        * change from meta() to metadata() at mst's request. Should help with
+          Moose compatability.
+        * added validate() method
+
 

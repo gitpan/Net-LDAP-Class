@@ -7,7 +7,7 @@ use base qw( Rose::Object );
 use Net::LDAP::Class::MethodMaker (
     scalar => [qw( base_dn ldap object_classes )], );
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 =head1 NAME
 
@@ -19,7 +19,7 @@ Net::LDAP::Class::Loader - interrogate an LDAP schema
  use strict;
  use base qw( Net::LDAP::Class );
  
- __PACKAGE__->meta->setup(
+ __PACKAGE__->metadata->setup(
     use_loader      => 1,
     ldap            => $ldap,
     object_classes  => [qw( posixAccount )],    # optional
@@ -99,9 +99,10 @@ sub interrogate {
             if ( !@unique ) {
                 my $filter = "(&($name=*) (objectClass=$oc))";
                 my $res    = $self->ldap->search(
-                    base   => $self->base_dn,
-                    scope  => 'sub',
-                    filter => $filter,
+                    base      => $self->base_dn,
+                    scope     => 'sub',
+                    filter    => $filter,
+                    sizelimit => 1,
                 );
 
                 if ( !$res->count ) {

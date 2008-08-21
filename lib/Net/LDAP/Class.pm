@@ -11,14 +11,14 @@ use Net::LDAP::Batch;
 use Net::LDAP::Class::Metadata;
 
 use Net::LDAP::Class::MethodMaker (
-    'scalar --get_set_init' => [qw( ldap ldap_entry debug )],
+    'scalar --get_set_init' => [qw( ldap ldap_entry debug error )],
     'scalar'                => [qw( batch prev_batch )],
     'object_or_class_meta'  => [qw( attributes unique_attributes base_dn )],
 );
 
 use overload '""' => 'stringify';
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 =head1 NAME
 
@@ -31,7 +31,7 @@ Net::LDAP::Class - object-relational mapper for Net::LDAP
  package MyLDAPClass;
  use base qw( Net::LDAP::Class );
  
- __PACKAGE__->meta->setup(
+ __PACKAGE__->metadata->setup(
     attributes          => [qw( name address phone email )],
     unique_attributes   => [qw( email )],
     base_dn             => 'dc=mycompany,dc=com',
@@ -95,7 +95,7 @@ sub init {
     my $self = shift;
     $self->SUPER::init(@_);
 
-    my $meta = $self->meta;
+    my $meta = $self->metadata;
     if ( !$meta or !$meta->is_initialized ) {
         croak
             "must initialize Metadata class before instantiating a new object";
@@ -110,32 +110,33 @@ sub init {
     return $self;
 }
 
-=head2 meta_class
+=head2 metadata_class
 
 Returns 'Net::LDAP::Class::Metadata' by default.
 
 =cut
 
-sub meta_class {'Net::LDAP::Class::Metadata'}
+sub metadata_class {'Net::LDAP::Class::Metadata'}
 
-=head2 meta
+=head2 metadata
 
-Returns an instance of the meta_class() containing all the metadata for
+Returns an instance of the metadata_class() containing all the metadata for
 the NLC class. May be called as a class or object method.
 
 =cut
 
-sub meta {
+sub metadata {
     my ($self) = shift;
 
     # object method
     if ( ref $self ) {
-        return $self->{_meta} ||= $self->meta_class->for_class( ref $self );
+        return $self->{_meta}
+            ||= $self->metadata_class->for_class( ref $self );
     }
 
     # class method
     return $Net::LDAP::Class::Metadata::Objects{$self}
-        || $self->meta_class->for_class($self);
+        || $self->metadata_class->for_class($self);
 }
 
 =head2 init_ldap
@@ -452,6 +453,28 @@ sub read_or_create {
         $self->create(@_);
     }
     return $self;
+}
+
+=head2 validate( I<attr_name>, I<attr_value> )
+
+Called by MethodMaker every time an attribute is set with 
+a MethodMaker-created method.
+
+If validate() returns true, I<attr_value> is set. If validate()
+returns false, a fatal error is thrown and error() set.
+
+This method should be overriden in your subclass to provide
+schema-specific validation. The default behaviour is a no-op
+(always returns true).
+
+=cut
+
+sub validate {
+    my ( $self, $attr, $value ) = @_;
+    if ( $self->debug ) {
+        warn "validate $attr: $value\n";
+    }
+    return 1;
 }
 
 =head2 do_batch( I<array_of_actions> )
