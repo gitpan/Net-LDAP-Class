@@ -9,7 +9,7 @@ use Net::LDAP::Class::MethodMaker (
     'scalar --get_set_init' => [qw( default_home_dir default_email_suffix )],
 );
 
-our $VERSION = '0.09';
+our $VERSION = '0.10';
 
 =head1 NAME
 
@@ -452,7 +452,8 @@ sub setup_for_write {
     my $sn        = $self->sn        || join( ' ', @name_parts );
     my $cn        = $self->cn        || join( ' ', $givenName, $sn );
 
-    my $email = $self->mail || $self->username . $self->default_email_suffix;
+    my $email = $self->mail
+        || ( $self->username . $self->default_email_suffix );
 
     return ( $group, $gid, $givenName, $sn, $cn, $email );
 }

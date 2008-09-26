@@ -8,7 +8,7 @@ use Net::LDAP::Class::MethodMaker (
     'related_objects'       => [qw( group groups )],
 );
 
-our $VERSION = '0.09';
+our $VERSION = '0.10';
 
 =head1 NAME
 
@@ -149,14 +149,14 @@ Returns a random alphanumeric string of length I<len> (default: 10).
 
 # possible characters (omits common mistaken letters Oh and el)
 my @charset = (
-    'a' .. 'k', 'm' .. 'z', 'A' .. 'N', 'P' .. 'Z', '1' .. '9', '.',
-    ':',        '^',        '?',        '@',        '('
+    'a' .. 'k', 'm' .. 'z', 'A' .. 'N', 'P' .. 'Z', '2' .. '9', '.',
+    ',',        '$',        '?',        '@',        '!'
 );
 
 sub random_string {
     my $self = shift;
     my $len = shift || 10;
-    
+
     # set random seed
     my ( $usert, $system, $cuser, $csystem ) = times;
     srand( ( $$ ^ $usert ^ $system ^ time ) );
@@ -170,10 +170,10 @@ sub random_string {
 
     my @chars;
     my $str = '';
-    until ($str =~ /\d/
-        && $str =~ /[A-Z]/
-        && $str =~ /[a-z]/
-        && $str =~ /\W/ )
+    until (    $str =~ /\d/
+            && $str =~ /[A-Z]/
+            && $str =~ /[a-z]/
+            && $str =~ /\W/ )
     {
         @chars = ();
         for ( my $i = 0; $i <= ( $len - 1 ); $i++ ) {

@@ -7,7 +7,7 @@ use base qw( Rose::Object );
 use Net::LDAP::Class::MethodMaker (
     scalar => [qw( base_dn ldap object_classes )], );
 
-our $VERSION = '0.09';
+our $VERSION = '0.10';
 
 =head1 NAME
 

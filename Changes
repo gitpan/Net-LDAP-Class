@@ -50,4 +50,7 @@ Revision history for Net-LDAP-Class
           Moose compatability.
         * added validate() method
 
+0.10    26 Sept 2008
+        * tweek list of possible_chars in random_string generation
+
 
