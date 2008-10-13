@@ -9,7 +9,7 @@ use Net::LDAP::Class::MethodMaker (
     'scalar --get_set_init' => [qw( default_home_dir default_email_suffix )],
 );
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 =head1 NAME
 
@@ -193,20 +193,25 @@ group_class().
 =cut
 
 sub fetch_groups {
-    my $self        = shift;
-    my @group_dns   = $self->memberOf;
-    my $group_class = $self->group_class;
+    my $self = shift;
     my @groups;
-    for my $dn (@group_dns) {
-        $dn =~ s/^cn=([^,]+),.+/$1/i;
-        push(
-            @groups,
-            $group_class->new(
-                cn   => $dn,
-                ldap => $self->ldap
-                )->read
-        );
+
+    if ( $self->ldap_entry ) {
+        my @group_dns   = $self->ldap_entry->get_value('memberOf');
+        my $group_class = $self->group_class;
+
+        for my $dn (@group_dns) {
+            $dn =~ s/^cn=([^,]+),.+/$1/i;
+            push(
+                @groups,
+                $group_class->new(
+                    cn   => $dn,
+                    ldap => $self->ldap
+                    )->read
+            );
+        }
     }
+
     return wantarray ? @groups : \@groups;
 }
 
@@ -344,6 +349,17 @@ sub action_for_create {
     my ( $group, $gid, $givenName, $sn, $cn, $email )
         = $self->setup_for_write;
 
+    my $pass = $self->password || $self->random_string(10);
+    $pass = $self->_encode_pass($pass);
+
+# see
+# http://www.sysoptools.com/support/files/Fixing%20user%20accounts%20flagged%20as%20system%20accounts%20-%20the%20UserAccountControl%20AD%20attribute.doc
+# for details on userAccountControl.
+# basically:
+#  512 - normal active account requiring password
+#  514 - normal disabled account requiring password
+#  544 - system active account - no password required
+#  546 - system disabled account - no password required (default)
     my @actions = (
         add => {
             dn   => "CN=$cn," . $base_dn,
@@ -357,35 +373,13 @@ sub action_for_create {
                 cn             => $cn,
                 homeDirectory  => $self->default_home_dir . "\\$username",
                 mail           => $email,
+                userAccountControl => 512,  # so AD treats it as a Normal user
+                unicodePwd         => $pass,
             ],
         }
     );
 
     push( @{ $actions[1]->{attr} }, primaryGroupID => $gid ) if $gid;
-
-    # set password if not set.
-    # this is useful for default random passwords.
-    # must do this as second update action rather than in initial add
-    # due to AD security restriction.
-    my $pass = $self->password || $self->random_string(10);
-    $pass = $self->_encode_pass($pass);
-
-# the 512 userAccountControl value indicates to AD
-# that a password is required.
-# see
-# http://www.sysoptools.com/support/files/Fixing%20user%20accounts%20flagged%20as%20system%20accounts%20-%20the%20UserAccountControl%20AD%20attribute.doc
-    push(
-        @actions,
-        update => {
-            search => [
-                base   => "CN=$cn," . $base_dn,
-                scope  => 'sub',
-                filter => "(CN=$cn)",
-                attrs  => $self->attributes
-            ],
-            replace => { unicodePwd => $pass, userAccountControl => 512 },
-        }
-    );
 
     # groups
     if ( exists $self->{groups} ) {
@@ -401,7 +395,7 @@ sub action_for_create {
                 }
             }
         }
-        push( @{ $actions[1]->{attr} }, memberOf => \@names );
+        push( @{ $actions[1]->{attr} }, memberOf => \@names ) if @names;
     }
 
     return @actions;

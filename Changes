@@ -53,4 +53,11 @@ Revision history for Net-LDAP-Class
 0.10    26 Sept 2008
         * tweek list of possible_chars in random_string generation
 
+0.11    13 Oct 2008
+        * fix User::AD so that password can be set in single action.
+        * fix User::AD so that add_to_group() can be called before initial creation.
+        * only set groups in User::AD create if there are any,
+          since AD will croak if memberOf is set to empty array.
+
+
 
