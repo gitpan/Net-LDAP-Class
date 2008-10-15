@@ -9,7 +9,7 @@ use Net::LDAP::Class::MethodMaker (
     'scalar --get_set_init' => [qw( default_home_dir default_email_suffix )],
 );
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 =head1 NAME
 
@@ -360,26 +360,35 @@ sub action_for_create {
 #  514 - normal disabled account requiring password
 #  544 - system active account - no password required
 #  546 - system disabled account - no password required (default)
+
+    my %attr = (
+        objectClass => [ "top", "person", "organizationalPerson", "user" ],
+        sAMAccountName => $username,
+        givenName      => $givenName,
+        displayName    => $cn,
+        sn             => $sn,
+        cn             => $cn,
+        homeDirectory  => $self->default_home_dir . "\\$username",
+        mail           => $email,
+        userAccountControl => 512,     # so AD treats it as a Normal user
+        unicodePwd         => $pass,
+    );
+
+    $attr{primaryGroupID} = $gid if $gid;
+
+    # mix in whatever has been set
+    for my $name ( keys %{ $self->{_not_yet_set} } ) {
+        unless ( exists $attr{$name} ) {
+            $attr{$name} = delete $self->{_not_yet_set}->{$name};
+        }
+    }
+
     my @actions = (
         add => {
             dn   => "CN=$cn," . $base_dn,
-            attr => [
-                objectClass =>
-                    [ "top", "person", "organizationalPerson", "user" ],
-                sAMAccountName => $username,
-                givenName      => $givenName,
-                displayName    => $cn,
-                sn             => $sn,
-                cn             => $cn,
-                homeDirectory  => $self->default_home_dir . "\\$username",
-                mail           => $email,
-                userAccountControl => 512,  # so AD treats it as a Normal user
-                unicodePwd         => $pass,
-            ],
+            attr => [%attr]
         }
     );
-
-    push( @{ $actions[1]->{attr} }, primaryGroupID => $gid ) if $gid;
 
     # groups
     if ( exists $self->{groups} ) {

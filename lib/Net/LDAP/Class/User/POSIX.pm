@@ -9,7 +9,7 @@ use base qw( Net::LDAP::Class::User );
 use Net::LDAP::Class::MethodMaker ( 'scalar --get_set_init' =>
         [qw( default_shell default_home_dir default_email_suffix )], );
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 # see http://www.ietf.org/rfc/rfc2307.txt
 
@@ -134,28 +134,38 @@ sub action_for_create {
     my ( $group, $gid, $givenName, $sn, $gecos, $email, $hash )
         = $self->setup_for_write;
 
+    # default attributes
     # note that not setting a homeDirectory or sn is a schema error
+    my %attr = (
+        objectClass  => [ "top", "person", "posixAccount" ],
+        cn           => $username,
+        givenName    => $givenName,
+        sn           => $sn,
+        uid          => $username,
+        userPassword => "$hash",
+        uidNumber    => $uid,
+        gidNumber    => $gid,
+        gecos        => $gecos,
+        homeDirectory    => $self->default_home_dir . "/$username",
+        loginShell       => $self->default_shell,
+        shadowMin        => "-1",
+        shadowMax        => "99999",
+        shadowWarning    => "7",
+        shadowLastChange => "13767",
+        mail             => $email
+    );
+
+    # mix in whatever has been set
+    for my $name ( keys %{ $self->{_not_yet_set} } ) {
+        unless ( exists $attr{$name} ) {
+            $attr{$name} = delete $self->{_not_yet_set}->{$name};
+        }
+    }
+
     my @actions = (
         add => {
             dn   => "uid=$username,ou=$group,ou=People," . $self->base_dn,
-            attr => [
-                objectClass  => [ "top", "person", "posixAccount" ],
-                cn           => $username,
-                givenName    => $givenName,
-                sn           => $sn,
-                uid          => $username,
-                userPassword => "$hash",
-                uidNumber    => $uid,
-                gidNumber    => $gid,
-                gecos        => $gecos,
-                homeDirectory    => $self->default_home_dir . "/$username",
-                loginShell       => $self->default_shell,
-                shadowMin        => "-1",
-                shadowMax        => "99999",
-                shadowWarning    => "7",
-                shadowLastChange => "13767",
-                mail             => $email
-            ],
+            attr => [%attr],
         }
     );
 

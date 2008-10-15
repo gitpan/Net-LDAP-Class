@@ -60,4 +60,8 @@ Revision history for Net-LDAP-Class
           since AD will croak if memberOf is set to empty array.
 
 
+0.12    15 Oct 2008
+        * refactor action_for_create in POSIX and AD user classes to also
+          set non-default attributes that might have been set prior to calling create().
+
 
