@@ -5,7 +5,7 @@ use base qw( Net::LDAP::Class::Group );
 use Carp;
 use Data::Dump ();
 
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 =head1 NAME
 
@@ -103,9 +103,10 @@ sub fetch_primary_users {
     my $user_class = $self->user_class;
     my $pgt        = $self->primaryGroupToken;
     my @users      = $user_class->find(
-        scope  => 'sub',
-        filter => "(primaryGroupID=$pgt)",
-        ldap   => $self->ldap,
+        scope   => 'sub',
+        filter  => "(primaryGroupID=$pgt)",
+        ldap    => $self->ldap,
+        base_dn => $self->base_dn,
     );
 
     return wantarray ? @users : \@users;
@@ -132,7 +133,8 @@ sub fetch_secondary_users {
         my ($cn) = ( $dn =~ m/^cn=([^,]+),/i );
         my $user = $user_class->new(
             distinguishedName => $dn,
-            ldap              => $self->ldap
+            ldap              => $self->ldap,
+            base_dn           => $self->base_dn,
         )->read;
         if ($user) {
             push( @users, $user );
@@ -344,14 +346,12 @@ sub add_user {
         croak
             "User object must have at least a username before adding to group $self";
     }
-    my @users = @{ $self->secondary_users };
-    for my $u (@users) {
-
-        #warn "User $u is in group $self";
-        if ( $user->username eq $u->username ) {
+    for my $u ( $self->secondary_users ) {
+        if ( "$u" eq "$user" ) {
             croak "User $user is already a member of group $self";
         }
     }
+    my @users = $self->secondary_users;
     push( @users, $user );
     $self->{users} = \@users;
 }

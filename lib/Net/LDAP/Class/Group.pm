@@ -9,7 +9,7 @@ use Net::LDAP::Class::MethodMaker (
 
 );
 
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 =head1 NAME
 
@@ -61,6 +61,25 @@ sub users {
     }
     my @users = ( @{ $self->primary_users }, @{ $self->secondary_users } );
     return wantarray ? @users : \@users;
+}
+
+=head2 has_user( I<user> )
+
+Returns true if I<user> is amongst users(), false otherwise.
+
+=cut
+
+sub has_user {
+    my $self = shift;
+    my $user = shift or croak "User required";
+    for my $u ( $self->users ) {
+
+        #warn "member $u  <>  user $user";
+        if ( "$u" eq "$user" ) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 =head2 init_user_class

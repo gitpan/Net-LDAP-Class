@@ -64,4 +64,8 @@ Revision history for Net-LDAP-Class
         * refactor action_for_create in POSIX and AD user classes to also
           set non-default attributes that might have been set prior to calling create().
 
+0.13    16 Oct 2008
+        * add has_user() convenience method in base Group class
+        * fix bug in AD::User where secondary groups were not being saved on create()
+        * explicitly pass base_dn in AD::Group fetch_*_users()
 

@@ -1,4 +1,4 @@
-use Test::More tests => 36;
+use Test::More tests => 38;
 use strict;
 
 use_ok('Net::LDAP::Class');
@@ -78,6 +78,8 @@ ok( my $user = MyLDAPUser->new(
 
 ok( $user->create, "create user" );
 
+ok( $bar_group->has_user($user), "group $bar_group now has user $user" );
+
 ok( $user->password, "random password was set" );
 
 ok( my $user2 = MyLDAPUser->new(
@@ -116,6 +118,8 @@ ok( $user->group($foo_group2), "set $user primary group to $foo_group2" );
 ok( $user->add_to_group($group), "make $group a secondary group" );
 
 ok( $user->update, "save group changes" );
+
+ok( $group->has_user($user), "group $group has user $user" );
 
 cmp_ok( $foo_group2->gid, '==', $user->gid, "prim group changed" );
 

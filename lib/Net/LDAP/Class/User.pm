@@ -8,7 +8,7 @@ use Net::LDAP::Class::MethodMaker (
     'related_objects'       => [qw( group groups )],
 );
 
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 =head1 NAME
 

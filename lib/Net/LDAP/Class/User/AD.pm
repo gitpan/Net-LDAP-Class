@@ -9,7 +9,7 @@ use Net::LDAP::Class::MethodMaker (
     'scalar --get_set_init' => [qw( default_home_dir default_email_suffix )],
 );
 
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 =head1 NAME
 
@@ -349,6 +349,8 @@ sub action_for_create {
     my ( $group, $gid, $givenName, $sn, $cn, $email )
         = $self->setup_for_write;
 
+    #warn "AD setup_for_write() $base_dn";
+
     my $pass = $self->password || $self->random_string(10);
     $pass = $self->_encode_pass($pass);
 
@@ -383,28 +385,56 @@ sub action_for_create {
         }
     }
 
+    my $dn = "CN=$cn,$base_dn";
+
     my @actions = (
         add => {
-            dn   => "CN=$cn," . $base_dn,
+            dn   => $dn,
             attr => [%attr]
         }
     );
 
+    #warn "AD checking groups $base_dn";
+
     # groups
     if ( exists $self->{groups} ) {
-        my @names;
-        for my $group ( @{ $self->{groups} } ) {
-            eval { $group->add_user($self); };
-            if ($@) {
-                if ( $@ =~ m/already/ ) {
-                    next;
-                }
-                else {
-                    croak $@;
-                }
+
+        #carp $self->dump;
+        
+        #warn "User $self has groups assigned";
+        #warn Data::Dump::dump $self->{groups};
+
+    G: for my $group ( @{ $self->{groups} } ) {
+            if ( !$group->ldap_entry ) {
+                croak
+                    "You must create group $group before you add User $self to it";
             }
+
+            #warn "checking if $group has user $self";
+
+            # only interested in new additions
+            next G if $group->has_user($self);
+
+            #warn "group $group does not yet have user $self";
+
+            my $group_cn = $group->cn;
+            my @members  = $group->member;
+            push( @members, $dn );
+
+            push(
+                @actions,
+                update => {
+                    search => [
+                        base   => $group->base_dn,
+                        scope  => "sub",
+                        filter => "(cn=$group_cn)",
+                        attrs  => $group->attributes,
+                    ],
+                    replace => { member => \@members },
+                }
+            );
+
         }
-        push( @{ $actions[1]->{attr} }, memberOf => \@names ) if @names;
     }
 
     return @actions;
@@ -551,47 +581,56 @@ sub action_for_update {
         # cache.
         my %new = map { $_->cn => $_ } @{ delete $self->{groups} };
 
+        #warn "User $self has " . scalar( keys %new ) . " groups set";
+        #warn "existing group: $_" for sort keys %existing;
+        #warn "new group     : $_" for sort keys %new;
+
         # which should be added
         my @to_add;
-        for my $cn ( keys %new ) {
+    G: for my $cn ( keys %new ) {
             if ( !exists $existing{$cn} ) {
                 my $group = $new{$cn};
 
-                #warn "add_user $self to group $group";
-                eval { $group->add_user($self) };
-
-                #warn "\$\@ = $@";
-                if ($@) {
-                    if ( $@ =~ m/already a member/ ) {
-
-                        # add_user already called
-                        next;
-                    }
-                    else {
-                        croak $@;
-                    }
+                if ( !$group->ldap_entry ) {
+                    croak(
+                        "you must create $group before adding user $self to it"
+                    );
                 }
+
+                for my $u ( $group->secondary_users ) {
+
+                    #warn " group member: $u <> user $self";
+
+                    next G if "$u" eq "$self";
+
+                }
+
+                #warn "group $group does NOT have User $self assigned";
+                $group->add_user($self);
+
                 push( @to_add, $group->action_for_update );
+
             }
         }
 
         # which should be removed
         my @to_rm;
-        for my $cn ( keys %existing ) {
+    G: for my $cn ( keys %existing ) {
             if ( !exists $new{$cn} ) {
                 my $group = $existing{$cn};
-                eval { $group->remove_user($self) };
-                if ($@) {
-                    if ( $@ =~ m/not a member/ ) {
 
-                        # remove_user already called
-                        next;
-                    }
-                    else {
-                        croak $@;
-                    }
+                #next unless $group->has_user($self);
+
+                for my $u ( $group->secondary_users ) {
+                    next G unless "$u" eq "$self";
                 }
+
+                #warn "group $group does have User $self assigned";
+
+                $group->remove_user($self);
+
                 push( @to_rm, $group->action_for_update );
+
             }
         }
 
