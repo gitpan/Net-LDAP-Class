@@ -9,7 +9,7 @@ use Net::LDAP::Class::MethodMaker (
     'scalar --get_set_init' => [qw( default_home_dir default_email_suffix )],
 );
 
-our $VERSION = '0.13';
+our $VERSION = '0.14';
 
 =head1 NAME
 
@@ -365,13 +365,13 @@ sub action_for_create {
 
     my %attr = (
         objectClass => [ "top", "person", "organizationalPerson", "user" ],
-        sAMAccountName => $username,
-        givenName      => $givenName,
-        displayName    => $cn,
-        sn             => $sn,
-        cn             => $cn,
-        homeDirectory  => $self->default_home_dir . "\\$username",
-        mail           => $email,
+        sAMAccountName    => $username,
+        givenName         => $givenName,
+        displayName       => $cn,
+        sn                => $sn,
+        cn                => $cn,
+        homeDirectory     => $self->default_home_dir . "\\$username",
+        mail              => $email,
         userAccountControl => 512,     # so AD treats it as a Normal user
         unicodePwd         => $pass,
     );
@@ -380,8 +380,13 @@ sub action_for_create {
 
     # mix in whatever has been set
     for my $name ( keys %{ $self->{_not_yet_set} } ) {
+
+        #warn "set $name => $self->{_not_yet_set}->{$name}";
         unless ( exists $attr{$name} ) {
             $attr{$name} = delete $self->{_not_yet_set}->{$name};
+        }
+        else {
+            $attr{$name} = $self->{_not_yet_set}->{$name};
         }
     }
 
@@ -400,7 +405,7 @@ sub action_for_create {
     if ( exists $self->{groups} ) {
 
         #carp $self->dump;
-        
+
         #warn "User $self has groups assigned";
         #warn Data::Dump::dump $self->{groups};
 

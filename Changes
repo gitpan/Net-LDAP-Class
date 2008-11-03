@@ -69,3 +69,5 @@ Revision history for Net-LDAP-Class
         * fix bug in AD::User where secondary groups were not being saved on create()
         * explicitly pass base_dn in AD::Group fetch_*_users()
 
+0.14    3 Nov 2008
+        * fix bug with create action in both User subclasses where some attrs were not being respected

@@ -9,7 +9,7 @@ use base qw( Net::LDAP::Class::User );
 use Net::LDAP::Class::MethodMaker ( 'scalar --get_set_init' =>
         [qw( default_shell default_home_dir default_email_suffix )], );
 
-our $VERSION = '0.13';
+our $VERSION = '0.14';
 
 # see http://www.ietf.org/rfc/rfc2307.txt
 
@@ -157,8 +157,13 @@ sub action_for_create {
 
     # mix in whatever has been set
     for my $name ( keys %{ $self->{_not_yet_set} } ) {
+
+        #warn "set $name => $self->{_not_yet_set}->{$name}";
         unless ( exists $attr{$name} ) {
             $attr{$name} = delete $self->{_not_yet_set}->{$name};
+        }
+        else {
+            $attr{$name} = $self->{_not_yet_set}->{$name};
         }
     }
 
