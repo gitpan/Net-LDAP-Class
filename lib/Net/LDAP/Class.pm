@@ -18,7 +18,7 @@ use Net::LDAP::Class::MethodMaker (
 
 use overload '""' => 'stringify';
 
-our $VERSION = '0.14';
+our $VERSION = '0.15';
 
 =head1 NAME
 

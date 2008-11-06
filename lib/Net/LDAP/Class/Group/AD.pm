@@ -5,7 +5,7 @@ use base qw( Net::LDAP::Class::Group );
 use Carp;
 use Data::Dump ();
 
-our $VERSION = '0.14';
+our $VERSION = '0.15';
 
 =head1 NAME
 
@@ -131,6 +131,8 @@ sub fetch_secondary_users {
     my @users;
     for my $dn (@members) {
         my ($cn) = ( $dn =~ m/^cn=([^,]+),/i );
+        $dn =~ s/\(/\\(/g;
+        $dn =~ s/\)/\\)/g;
         my $user = $user_class->new(
             distinguishedName => $dn,
             ldap              => $self->ldap,

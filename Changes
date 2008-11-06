@@ -71,3 +71,7 @@ Revision history for Net-LDAP-Class
 
 0.14    3 Nov 2008
         * fix bug with create action in both User subclasses where some attrs were not being respected
+
+0.15    6 Nov 2008
+        * escape () in DN value in Group::AD since user DN might have () marks in it (though this is *bad* practice)
+
