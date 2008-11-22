@@ -16,9 +16,9 @@ use Net::LDAP::Class::MethodMaker (
     'object_or_class_meta'  => [qw( attributes unique_attributes base_dn )],
 );
 
-use overload '""' => 'stringify';
+use overload '""' => 'stringify', 'fallback' => 1;
 
-our $VERSION = '0.15';
+our $VERSION = '0.16';
 
 =head1 NAME
 

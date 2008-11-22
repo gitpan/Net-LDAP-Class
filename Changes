@@ -75,3 +75,6 @@ Revision history for Net-LDAP-Class
 0.15    6 Nov 2008
         * escape () in DN value in Group::AD since user DN might have () marks in it (though this is *bad* practice)
 
+0.16    22 Nov 2008
+        * fix overload for Test::More 0.86
+
