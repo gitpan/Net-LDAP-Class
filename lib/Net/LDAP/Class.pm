@@ -18,7 +18,7 @@ use Net::LDAP::Class::MethodMaker (
 
 use overload '""' => 'stringify', 'fallback' => 1;
 
-our $VERSION = '0.16';
+our $VERSION = '0.17';
 
 =head1 NAME
 
@@ -638,6 +638,18 @@ value.
 sub dump {
     my $self = shift;
     return Data::Dump::dump($self);
+}
+
+=head2 has_local_changes
+
+Convenience method. Returns true if the object has had any values
+set since the last time it was written to the server.
+
+=cut
+
+sub has_local_changes {
+    my $self = shift;
+    return scalar keys %{ $self->{_was_set} };
 }
 
 1;

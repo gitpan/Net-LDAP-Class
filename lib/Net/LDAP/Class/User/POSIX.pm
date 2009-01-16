@@ -9,7 +9,7 @@ use base qw( Net::LDAP::Class::User );
 use Net::LDAP::Class::MethodMaker ( 'scalar --get_set_init' =>
         [qw( default_shell default_home_dir default_email_suffix )], );
 
-our $VERSION = '0.16';
+our $VERSION = '0.17';
 
 # see http://www.ietf.org/rfc/rfc2307.txt
 
@@ -250,11 +250,16 @@ sub setup_for_write {
 
     # the name logic breaks horribly here for anything but trivial cases.
     my @name_parts = split( m/\s+/, $self->gecos || '' );
-    my $givenName = $self->givenName || shift(@name_parts);
-    my $sn        = $self->sn        || join( ' ', @name_parts );
-    my $gecos     = $self->gecos     || join( ' ', $givenName, $sn );
+    my $givenName = $self->givenName;
+    $givenName = shift(@name_parts) unless defined $givenName;
+    my $sn = $self->sn;
+    $sn = join( ' ', @name_parts ) unless defined $sn;
+    my $gecos = $self->gecos;
+    $gecos = join( ' ', $givenName, $sn ) unless defined $gecos;
 
-    my $email = $self->mail || $self->username . $self->default_email_suffix;
+    my $email = $self->mail;
+    $email = ( $self->username . $self->default_email_suffix )
+        unless defined $email;
 
     # set password if not set.
     # this is useful for default random passwords.

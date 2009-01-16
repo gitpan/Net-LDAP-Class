@@ -9,7 +9,7 @@ use Net::LDAP::Class::MethodMaker (
     'scalar --get_set_init' => [qw( default_home_dir default_email_suffix )],
 );
 
-our $VERSION = '0.16';
+our $VERSION = '0.17';
 
 =head1 NAME
 
@@ -365,13 +365,13 @@ sub action_for_create {
 
     my %attr = (
         objectClass => [ "top", "person", "organizationalPerson", "user" ],
-        sAMAccountName    => $username,
-        givenName         => $givenName,
-        displayName       => $cn,
-        sn                => $sn,
-        cn                => $cn,
-        homeDirectory     => $self->default_home_dir . "\\$username",
-        mail              => $email,
+        sAMAccountName => $username,
+        givenName      => $givenName,
+        displayName    => $cn,
+        sn             => $sn,
+        cn             => $cn,
+        homeDirectory  => $self->default_home_dir . "\\$username",
+        mail           => $email,
         userAccountControl => 512,     # so AD treats it as a Normal user
         unicodePwd         => $pass,
     );
@@ -486,12 +486,17 @@ sub setup_for_write {
 
     # the name logic breaks horribly here for anything but trivial cases.
     my @name_parts = split( m/\s+/, $self->cn || $self->displayName || '' );
-    my $givenName = $self->givenName || shift(@name_parts);
-    my $sn        = $self->sn        || join( ' ', @name_parts );
-    my $cn        = $self->cn        || join( ' ', $givenName, $sn );
 
-    my $email = $self->mail
-        || ( $self->username . $self->default_email_suffix );
+    my $givenName = $self->givenName;
+    $givenName = shift(@name_parts) unless defined $givenName;
+    my $sn = $self->sn;
+    $sn = join( ' ', @name_parts ) unless defined $sn;
+    my $cn = $self->cn;
+    $cn = join( ' ', $givenName, $sn ) unless defined $cn;
+
+    my $email = $self->mail;
+    $email = ( $self->username . $self->default_email_suffix )
+        unless defined $email;
 
     return ( $group, $gid, $givenName, $sn, $cn, $email );
 }

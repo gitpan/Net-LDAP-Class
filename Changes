@@ -78,3 +78,11 @@ Revision history for Net-LDAP-Class
 0.16    22 Nov 2008
         * fix overload for Test::More 0.86
 
+0.17    16 Jan 2009
+        * add Loader tests
+        * fix bug when setting name and email for both AD and POSIX. Bug was
+          equivalent to ||= instead of //= since an empty string is different
+          than undef. Allows for setting the value to an empty string.
+        * new method has_local_changes()
+
+

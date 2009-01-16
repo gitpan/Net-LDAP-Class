@@ -7,7 +7,7 @@ use base qw( Rose::Object );
 use Net::LDAP::Class::MethodMaker (
     scalar => [qw( base_dn ldap object_classes )], );
 
-our $VERSION = '0.16';
+our $VERSION = '0.17';
 
 =head1 NAME
 
@@ -106,7 +106,7 @@ sub interrogate {
                 );
 
                 if ( !$res->count ) {
-                    warn "no match for $filter";
+                    #warn "no match for $filter";
                     next MUST;
                 }
 
