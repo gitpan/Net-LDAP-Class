@@ -9,7 +9,7 @@ use base qw( Net::LDAP::Class::User );
 use Net::LDAP::Class::MethodMaker ( 'scalar --get_set_init' =>
         [qw( default_shell default_home_dir default_email_suffix )], );
 
-our $VERSION = '0.17';
+our $VERSION = '0.18_01';
 
 # see http://www.ietf.org/rfc/rfc2307.txt
 

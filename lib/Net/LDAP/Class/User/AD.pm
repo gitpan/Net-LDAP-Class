@@ -9,7 +9,7 @@ use Net::LDAP::Class::MethodMaker (
     'scalar --get_set_init' => [qw( default_home_dir default_email_suffix )],
 );
 
-our $VERSION = '0.17';
+our $VERSION = '0.18_01';
 
 =head1 NAME
 
@@ -156,9 +156,12 @@ sub fetch_group {
 
 sub _sid2string {
     my $sid = shift;
+    carp "nlc sid    = " . Data::Dump::dump($sid);
     my (@unpack) = unpack( "H2 H2 n N V*", $sid );
     my ( $sid_rev, $num_auths, $id1, $id2, @ids ) = (@unpack);
-    return join( "-", "S", $sid_rev, ( $id1 << 32 ) + $id2, @ids );
+    my $string = join( "-", "S", $sid_rev, ( $id1 << 32 ) + $id2, @ids );
+    carp "nlc string = $string";
+    return $string;
 }
 
 sub _string2sid {
@@ -179,6 +182,9 @@ sub _string2sid {
     for my $i (@ids) {
         $sid .= pack( "I", $i );
     }
+    
+    carp "nlc string = $string";
+    carp "nlc sid    = " . Data::Dump::dump($sid);
 
     return $sid;
 }
