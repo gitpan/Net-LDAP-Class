@@ -9,7 +9,7 @@ use Net::LDAP::Class::MethodMaker (
 
 );
 
-our $VERSION = '0.18_01';
+our $VERSION = '0.18_02';
 
 =head1 NAME
 

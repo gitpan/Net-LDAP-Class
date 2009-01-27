@@ -7,7 +7,7 @@ use base qw( Rose::Object );
 use Net::LDAP::Class::MethodMaker (
     scalar => [qw( base_dn ldap object_classes )], );
 
-our $VERSION = '0.18_01';
+our $VERSION = '0.18_02';
 
 =head1 NAME
 
@@ -132,6 +132,20 @@ sub interrogate {
     return \%OC;
 
 }
+
+=head2 base_dn
+
+Get/set the base DN used by interrogate().
+
+=head2 ldap
+
+Get/set the Net::LDAP object.
+
+=head2 object_classes
+
+Get/set the array ref of object classes to be used by interrogate().
+
+=cut
 
 1;
 

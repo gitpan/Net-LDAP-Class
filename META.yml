@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Net-LDAP-Class
-version:            0.18_01
+version:            0.18_02
 abstract:           object-relational mapper for Net::LDAP
 author:
     - Peter Karman <karman@cpan.org>

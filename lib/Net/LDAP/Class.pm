@@ -18,7 +18,7 @@ use Net::LDAP::Class::MethodMaker (
 
 use overload '""' => 'stringify', 'fallback' => 1;
 
-our $VERSION = '0.18_01';
+our $VERSION = '0.18_02';
 
 =head1 NAME
 
@@ -651,6 +651,16 @@ sub has_local_changes {
     my $self = shift;
     return scalar keys %{ $self->{_was_set} };
 }
+
+=head2 batch
+
+Get/set the Net::LDAP::Batch object for the current transaction. Typically you
+don't want to mess with this but documented for completeness.
+
+=head2 prev_batch
+
+Get/set the Net::LDAP::Batch object for the just-completed transaction.
+Typically you don't want to mess with this but documented for completeness.
 
 1;
 

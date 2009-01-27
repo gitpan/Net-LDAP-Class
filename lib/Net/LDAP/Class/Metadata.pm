@@ -6,7 +6,7 @@ use base qw( Rose::Object );
 use Clone ();
 use Net::LDAP::Class::Loader;
 
-our $VERSION = '0.18_01';
+our $VERSION = '0.18_02';
 
 #
 # much of this stolen verbatim from RDBO::Metadata
@@ -201,6 +201,35 @@ sub __get_parents {
 
     return $class, @parents;
 }
+
+=head2 attributes
+
+Get/set the array ref of attributes for the class.
+
+=head2 base_dn
+
+Get/set the base DN for the class.
+
+=head2 error
+
+Get/set the current error message.
+
+=head2 ldap
+
+Get/set the internal Net::LDAP object.
+
+=head2 object_classes
+
+Get/set the object_classes to be used by the Loader. Ignored if
+you are not using Net::LDAP::Class::Loader.
+
+=head2 unique_attributes
+
+Get/set the array ref of unique attributes for the class.
+These are attributes which may be used to uniquely identify
+a LDAP entry.
+
+=cut
 
 1;
 
