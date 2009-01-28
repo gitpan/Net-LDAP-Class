@@ -1,4 +1,4 @@
-use Test::More tests => 37;
+use Test::More tests => 45;
 use strict;
 
 use_ok('Net::LDAP::Class');
@@ -31,6 +31,8 @@ ok( my $ldap = Net::LDAP->new(
 
     sub init_group_class {'MyLDAPGroup'}
 
+    sub init_ldap { return $ldap }
+
 }
 
 {
@@ -45,6 +47,8 @@ ok( my $ldap = Net::LDAP->new(
     );
 
     sub init_user_class {'MyLDAPUser'}
+
+    sub init_ldap { return $ldap }
 }
 
 ok( $ldap->bind, "bind to server" );
@@ -153,3 +157,25 @@ cmp_ok( $group->gid, '==', $user->gid, "prim group changed" );
 ok( !@{ $user->groups },                 "no secondary groups" );
 ok( !@{ $group->fetch_secondary_users }, "no secondary users" );
 
+# make some more users so we can test iteration
+for my $uname (qw( 123 456 789 abc def ghi )) {
+    ok( MyLDAPUser->new(
+            username  => $uname,
+            uidNumber => $uname,
+            gidNumber => $group->gid,
+            gecos     => 'test user',
+            )->read_or_create,
+        "create $uname"
+    );
+}
+
+ok( my $count = MyLDAPUser->new()->act_on_all(
+        sub {
+
+            #diag(shift);
+        }
+    ),
+    'act_on_all'
+);
+
+is( $count, 7, "act_on_all == $count" );

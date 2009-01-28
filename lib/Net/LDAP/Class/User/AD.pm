@@ -9,7 +9,7 @@ use Net::LDAP::Class::MethodMaker (
     'scalar --get_set_init' => [qw( default_home_dir default_email_suffix )],
 );
 
-our $VERSION = '0.18_02';
+our $VERSION = '0.18_03';
 
 =head1 NAME
 
@@ -139,14 +139,14 @@ sub fetch_group {
 
     # because AD does not store primaryGroupToken but computes it,
     # we must do gymnastics using SIDs
-    #warn "gid = $gid";
+    warn "gid = $gid";
 
     my $user_sid_string = _sid2string( $self->objectSID );
 
-    #warn "user_sid_string:  $user_sid_string";
+    warn "user_sid_string:  $user_sid_string";
     ( my $group_sid_string = $user_sid_string ) =~ s/\-[^\-]+$/-$gid/;
 
-    #warn "group_sid_string: $group_sid_string";
+    warn "group_sid_string: $group_sid_string";
 
     return $class->new(
         objectSID => $group_sid_string,
@@ -475,7 +475,7 @@ sub setup_for_write {
         else {
             my $group_obj = $self->fetch_group($group);
             if ( !$group_obj ) {
-                croak "no such group in AD server: $group";
+                confess "no such group in AD server: $group";
             }
             $gid = $group_obj->gid;
         }

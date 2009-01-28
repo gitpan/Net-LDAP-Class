@@ -8,7 +8,7 @@ use Net::LDAP::Class::MethodMaker (
     'related_objects'       => [qw( group groups )],
 );
 
-our $VERSION = '0.18_02';
+our $VERSION = '0.18_03';
 
 =head1 NAME
 
@@ -131,14 +131,14 @@ sub stringify { shift->username }
 
 =head2 username
 
-Returns the value of the first unique attribute.
+Get/set the value of the first unique attribute.
 
 =cut
 
 sub username {
     my $self = shift;
     my $attr = $self->unique_attributes->[0];
-    return $self->$attr;
+    return $self->$attr(@_);
 }
 
 =head2 random_string([I<len>])

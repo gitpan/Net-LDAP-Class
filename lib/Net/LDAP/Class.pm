@@ -7,6 +7,8 @@ use Carp;
 use Data::Dump ();
 use Net::LDAP;
 use Net::LDAP::Entry;
+use Net::LDAP::Control::Paged;
+use Net::LDAP::Constant qw(LDAP_CONTROL_PAGED);
 use Net::LDAP::Batch;
 use Net::LDAP::Class::Metadata;
 
@@ -18,7 +20,7 @@ use Net::LDAP::Class::MethodMaker (
 
 use overload '""' => 'stringify', 'fallback' => 1;
 
-our $VERSION = '0.18_02';
+our $VERSION = '0.18_03';
 
 =head1 NAME
 
@@ -661,6 +663,106 @@ don't want to mess with this but documented for completeness.
 
 Get/set the Net::LDAP::Batch object for the just-completed transaction.
 Typically you don't want to mess with this but documented for completeness.
+
+=cut
+
+=head2 act_on_all( I<code_ref> [, I<opts>] )
+
+Performs I<coderef> sub reference on all records in LDAP. 
+The I<coderef> should expect one argument: a Net::LDAP::Class-derived
+object.
+
+act_on_all() operates using Net::LDAP::Control::Paged, performing
+a search() using a filter based on unique_attributes() and iterating
+over all matches in groups of (by default) 500. You may set the 
+pager size in I<opts>. I<opts> should be a hash ref. The following
+key/value pairs are supported:
+
+=over
+
+=item page_size
+
+Default: 500. Sets the Net::LDAP::Control::Paged size.
+
+=item filter
+
+Default: unique_atttributes->[0] = '*'
+
+Set the filter for the search.
+
+=back
+
+Returns the number of Net::LDAP::Class results acted upon.
+
+=cut
+
+sub act_on_all {
+    my $self    = shift;
+    my $coderef = shift or croak "coderef required";
+    my $opts    = shift || {};
+    my $class   = ref($self) || $self;
+
+    if ( ref $coderef ne 'CODE' ) {
+        croak "coderef is not a CODE reference";
+    }
+
+    my $filter = $opts->{filter}
+        || $self->metadata->unique_attributes->[0] . '=*';
+    my $page_size = $opts->{page_size} || 500;
+
+    my $ldap = $self->ldap;
+    my $page = Net::LDAP::Control::Paged->new( size => $page_size );
+    my $cookie;
+    my @args = (
+        'base'    => $self->metadata->base_dn,
+        'filter'  => "($filter)",
+        'attrs'   => $self->metadata->attributes,
+        'control' => [$page],
+    );
+
+    my $count = 0;
+
+PAGE: while ( my $ldap_search = $ldap->search(@args) ) {
+
+        # fatal on search error
+        croak "error searching ldap: ", $self->get_ldap_error($ldap_search)
+            if ( $ldap_search->code );
+
+    ENTRY: while ( my $ldap_entry = $ldap_search->shift_entry ) {
+
+            $count++;
+
+            my $nlc = $class->new(
+                ldap       => $ldap,
+                ldap_entry => $ldap_entry
+            );
+
+            $self->debug and warn sprintf( "%6d %s\n", $count, $nlc );
+
+            $coderef->($nlc);
+        }
+
+        # handle next search page
+        my ($resp) = $ldap_search->control(LDAP_CONTROL_PAGED) or last PAGE;
+        $cookie = $resp->cookie;
+        if ( !$cookie ) {
+            last PAGE;
+        }
+        $page->cookie($cookie);
+
+    }
+
+    # be nice to the server and stop the search if we still have a cookie
+    if ($cookie) {
+        $page->cookie($cookie);
+        $page->size(0);
+        $ldap->ldap->search(@args);
+        croak "LDAP seach ended prematurely.";
+    }
+
+    return $count;
+
+}
 
 1;
 
