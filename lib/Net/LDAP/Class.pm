@@ -20,7 +20,7 @@ use Net::LDAP::Class::MethodMaker (
 
 use overload '""' => 'stringify', 'fallback' => 1;
 
-our $VERSION = '0.18_03';
+our $VERSION = '0.18';
 
 =head1 NAME
 
@@ -457,6 +457,25 @@ sub read_or_create {
     return $self;
 }
 
+=head2 save
+
+Convenience method. If ldap_entry() is set, update() is called.
+Otherwise, read_or_create() is called. The NLC object is returned
+in any case.
+
+=cut
+
+sub save {
+    my $self = shift;
+    if ( $self->ldap_entry ) {
+        $self->update;
+    }
+    else {
+        $self->read_or_create;
+    }
+    return $self;
+}
+
 =head2 validate( I<attr_name>, I<attr_value> )
 
 Called by MethodMaker every time an attribute is set with 
@@ -690,6 +709,10 @@ Default: unique_atttributes->[0] = '*'
 
 Set the filter for the search.
 
+=item ldap
+
+A Net::LDAP object. B<Required if you call act_on_all() as a class method.>
+
 =back
 
 Returns the number of Net::LDAP::Class results acted upon.
@@ -710,7 +733,7 @@ sub act_on_all {
         || $self->metadata->unique_attributes->[0] . '=*';
     my $page_size = $opts->{page_size} || 500;
 
-    my $ldap = $self->ldap;
+    my $ldap = $opts->{ldap} || $self->ldap;
     my $page = Net::LDAP::Control::Paged->new( size => $page_size );
     my $cookie;
     my @args = (

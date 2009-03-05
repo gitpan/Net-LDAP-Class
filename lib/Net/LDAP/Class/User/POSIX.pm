@@ -9,7 +9,7 @@ use base qw( Net::LDAP::Class::User );
 use Net::LDAP::Class::MethodMaker ( 'scalar --get_set_init' =>
         [qw( default_shell default_home_dir default_email_suffix )], );
 
-our $VERSION = '0.18_03';
+our $VERSION = '0.18';
 
 # see http://www.ietf.org/rfc/rfc2307.txt
 
@@ -599,29 +599,6 @@ sub new_password {
     return $self->ssha_hash( $self->random_string(@_) );
 }
 
-sub _random_seed {
-    my ($len) = @_;
-    my ( @charset, $usert, $system, $cuser,      $csystem );
-    my ( $i,       $val,   $chars,  $tmp_passwd, @chars );
-
-    # possible characters
-    (@charset) = ( 'a' .. 'z', 'A' .. 'Z', '0' .. '9', '.', '/' );
-
-    sleep( int( rand(3) + 1 ) );
-    ( $usert, $system, $cuser, $csystem ) = times;
-
-    srand( ( $$ ^ $usert ^ $system ^ time ) );
-
-    for ( $i = 0; $i <= ( $len - 1 ); $i++ ) {
-        $val = $charset[ int( rand($#charset) + 1 ) ];
-        $chars[$i] = $val;
-    }
-
-    # pack characters into scalar
-    $tmp_passwd = pack( 'aa', @chars );
-    return $tmp_passwd;
-}
-
 =head2 ssha_hash( I<string> )
 
 Returns seeded hash of I<string> using SHA-1. See
@@ -638,7 +615,7 @@ sub ssha_hash {
     my $string = shift or croak "string required";
     return $string if $string =~ m/^\{SSHA\}/;
 
-    my $seed = _random_seed(8);
+    my $seed = $self->random_string;
     my $sha1 = Digest::SHA1->new;
     $sha1->add($string);
     $sha1->add($seed);

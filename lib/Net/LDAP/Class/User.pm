@@ -8,7 +8,7 @@ use Net::LDAP::Class::MethodMaker (
     'related_objects'       => [qw( group groups )],
 );
 
-our $VERSION = '0.18_03';
+our $VERSION = '0.18';
 
 =head1 NAME
 
@@ -153,6 +153,9 @@ my @charset = (
     ',',        '$',        '?',        '@',        '!'
 );
 
+# sanity check for collisions in tight loops
+my %rand_string_cache;
+
 sub random_string {
     my $self = shift;
     my $len = shift || 10;
@@ -173,7 +176,8 @@ sub random_string {
     until (    $str =~ /\d/
             && $str =~ /[A-Z]/
             && $str =~ /[a-z]/
-            && $str =~ /\W/ )
+            && $str =~ /\W/
+            && !$rand_string_cache{$str}++ )
     {
         @chars = ();
         for ( my $i = 0; $i <= ( $len - 1 ); $i++ ) {

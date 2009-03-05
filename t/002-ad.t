@@ -1,4 +1,4 @@
-use Test::More tests => 38;
+use Test::More tests => 41;
 use strict;
 
 use_ok('Net::LDAP::Class');
@@ -154,3 +154,8 @@ cmp_ok( $group->gid, '==', $user->gid, "prim group changed" );
 ok( !@{ $user->groups },                 "no secondary groups" );
 ok( !@{ $group->fetch_secondary_users }, "no secondary users" );
 
+diag( "group = $group" );
+is( $group->name, 'foogroup', 'test name()');
+ok( $group->name('foo123'), 'reset name()');
+is( $group->name, 'foo123', 'test name()');
+diag( "group = $group" );

@@ -164,7 +164,7 @@ for my $uname (qw( 123 456 789 abc def ghi )) {
             uidNumber => $uname,
             gidNumber => $group->gid,
             gecos     => 'test user',
-            )->read_or_create,
+            )->create,
         "create $uname"
     );
 }

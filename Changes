@@ -95,4 +95,9 @@ Revision history for Net-LDAP-Class
         * add more debugging to trace the 'no such group in AD server: 101 at t/002-ad.t line 99' failure.
         * add act_on_all() utility method
 
-
+0.18    5 Mar 2009
+        * refactor random SHA1 seed generation to speed it up.
+        * add save() method
+        * add ldap option to act_on_all() to allow calling as class method.
+        * default User::AD DN now based on username plus human name, to help enforce uniqueness.
+          This allows for the same human to have multiple accounts in the same OU.

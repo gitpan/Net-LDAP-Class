@@ -9,7 +9,7 @@ use Net::LDAP::Class::MethodMaker (
     'scalar --get_set_init' => [qw( default_home_dir default_email_suffix )],
 );
 
-our $VERSION = '0.18_03';
+our $VERSION = '0.18';
 
 =head1 NAME
 
@@ -182,7 +182,7 @@ sub _string2sid {
     for my $i (@ids) {
         $sid .= pack( "I", $i );
     }
-    
+
     carp "nlc string = $string";
     carp "nlc sid    = " . Data::Dump::dump($sid);
 
@@ -375,10 +375,10 @@ sub action_for_create {
         givenName      => $givenName,
         displayName    => $cn,
         sn             => $sn,
-        cn             => $cn,
-        homeDirectory  => $self->default_home_dir . "\\$username",
-        mail           => $email,
-        userAccountControl => 512,     # so AD treats it as a Normal user
+        cn             => $cn,          # must match $dn below
+        homeDirectory => $self->default_home_dir . "\\$username",
+        mail          => $email,
+        userAccountControl => 512,      # so AD treats it as a Normal user
         unicodePwd         => $pass,
     );
 
@@ -387,8 +387,10 @@ sub action_for_create {
     # mix in whatever has been set
     for my $name ( keys %{ $self->{_not_yet_set} } ) {
 
+        next if $name eq 'cn';    # because we alter this in setup_for_write()
+
         #warn "set $name => $self->{_not_yet_set}->{$name}";
-        unless ( exists $attr{$name} ) {
+        if ( !exists $attr{$name} ) {
             $attr{$name} = delete $self->{_not_yet_set}->{$name};
         }
         else {
@@ -500,8 +502,13 @@ sub setup_for_write {
     my $cn = $self->cn;
     $cn = join( ' ', $givenName, $sn ) unless defined $cn;
 
+    my $un = $self->username;
+    if ( $cn ne $un and $cn !~ m!/$un$! ) {
+        $cn .= "/$un";    # for uniqueness
+    }
+
     my $email = $self->mail;
-    $email = ( $self->username . $self->default_email_suffix )
+    $email = ( $un . $self->default_email_suffix )
         unless defined $email;
 
     return ( $group, $gid, $givenName, $sn, $cn, $email );
@@ -544,6 +551,8 @@ sub action_for_update {
     # which fields have changed.
     my %replace;
     for my $attr ( keys %{ $self->{_was_set} } ) {
+
+        next if $attr eq 'cn';    # because we mangle in setup_for_write()
 
         my $old = $self->{_was_set}->{$attr}->{old};
         my $new = $self->{_was_set}->{$attr}->{new} || $derived{$attr};

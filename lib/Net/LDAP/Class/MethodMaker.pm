@@ -5,7 +5,7 @@ use base qw( Rose::Object::MakeMethods::Generic );
 use Carp;
 use Data::Dump;
 
-our $VERSION = '0.18_03';
+our $VERSION = '0.18';
 
 =head1 NAME
 

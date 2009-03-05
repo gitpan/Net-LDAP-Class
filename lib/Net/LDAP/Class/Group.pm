@@ -9,7 +9,7 @@ use Net::LDAP::Class::MethodMaker (
 
 );
 
-our $VERSION = '0.18_03';
+our $VERSION = '0.18';
 
 =head1 NAME
 
@@ -93,12 +93,11 @@ sub init_user_class { croak "must override init_user_class" }
 
 =head2 name
 
-Same as calling cn() with no arguments. 
-A Group object stringifies to this method.
+Same as calling cn(). A Group object stringifies to this method.
 
 =cut
 
-sub name { shift->cn }
+sub name { shift->cn(@_) }
 
 =head2 stringify
 
