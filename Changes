@@ -99,5 +99,11 @@ Revision history for Net-LDAP-Class
         * refactor random SHA1 seed generation to speed it up.
         * add save() method
         * add ldap option to act_on_all() to allow calling as class method.
+        * group->name a setter as well as getter
         * default User::AD DN now based on username plus human name, to help enforce uniqueness.
           This allows for the same human to have multiple accounts in the same OU.
+
+0.19    10 Aug 2009
+        * tweek N::L::C::G::AD per https://rt.cpan.org/Ticket/Display.html?id=48562
+        * add isa_user() and isa_group() methods to base class per same RT ticket.
+

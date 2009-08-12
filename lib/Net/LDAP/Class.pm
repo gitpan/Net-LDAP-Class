@@ -20,7 +20,7 @@ use Net::LDAP::Class::MethodMaker (
 
 use overload '""' => 'stringify', 'fallback' => 1;
 
-our $VERSION = '0.18';
+our $VERSION = '0.19';
 
 =head1 NAME
 
@@ -786,6 +786,28 @@ PAGE: while ( my $ldap_search = $ldap->search(@args) ) {
     return $count;
 
 }
+
+=head2 isa_user
+
+Convenience method. Just returns shift->isa('Net::LDAP::Class::User').
+
+=cut
+
+sub isa_user {
+    return shift->isa('Net::LDAP::Class::User');
+}
+
+=head2 isa_group
+
+Just like isa_user() but checks the Net::LDAP::Class::Group.
+
+=cut
+
+sub isa_group {
+    return shift->isa('Net::LDAP::Class::Group');
+}
+
+
 
 1;
 

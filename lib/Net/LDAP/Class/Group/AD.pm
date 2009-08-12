@@ -5,7 +5,7 @@ use base qw( Net::LDAP::Class::Group );
 use Carp;
 use Data::Dump ();
 
-our $VERSION = '0.18';
+our $VERSION = '0.19';
 
 =head1 NAME
 
@@ -138,7 +138,7 @@ sub fetch_secondary_users {
             ldap              => $self->ldap,
             base_dn           => $self->base_dn,
         )->read;
-        if ($user) {
+        if (defined $user) {  # see https://rt.cpan.org/Ticket/Display.html?id=48562
             push( @users, $user );
         }
         else {
