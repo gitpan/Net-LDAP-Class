@@ -9,7 +9,7 @@ use Net::LDAP::Class::MethodMaker (
 
 );
 
-our $VERSION = '0.19';
+our $VERSION = '0.20';
 
 =head1 NAME
 
@@ -47,10 +47,34 @@ sub init {
     return $self;
 }
 
+=head2 users_iterator([I<opts_hashref>])
+
+Returns a Net::LDAP::Class::MultiIterator object
+for all primary and secondary users.
+
+This is the same data as users() returns, but is more
+efficient since it pages the results and only fetches
+one at a time.
+
+=cut
+
+sub users_iterator {
+    my $self = shift;
+    return Net::LDAP::Class::MultiIterator->new(
+        iterators => [
+            $self->primary_users_iterator(@_),
+            $self->secondary_users_iterator(@_),
+        ]
+    );
+}
+
 =head2 users
 
 Returns array or array ref (based on context) of primary_users()
 and secondary_users().
+
+B<CAUTION:> Consider using users_iterator() instead, especially if you
+have large groups. See L<Net::LDAP::Class::Iterator> for an explanation.
 
 =cut
 
@@ -67,11 +91,19 @@ sub users {
 
 Returns true if I<user> is amongst users(), false otherwise.
 
+B<NOTE:> This looks at the currently loaded users() and does
+not do a read of the LDAP server. It is mostly useful
+for checking whether you've already queued I<user> for addition
+with add_to_group().
+
 =cut
 
 sub has_user {
     my $self = shift;
     my $user = shift or croak "User required";
+
+    # don't use the iterator, because we want to look
+    # at what might be queued for addition.
     for my $u ( $self->users ) {
 
         #warn "member $u  <>  user $user";

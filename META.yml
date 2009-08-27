@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Net-LDAP-Class
-version:            0.19
+version:            0.20
 abstract:           object-relational mapper for Net::LDAP
 author:
     - Peter Karman <karman@cpan.org>
@@ -17,7 +17,7 @@ requires:
     MIME::Base64:         0
     Net::LDAP:            0
     Net::LDAP::Batch:     0
-    Net::LDAP::Server::Test:  0.0801
+    Net::LDAP::Server::Test:  0.08
     Rose::Object:         0
     Test::More:           0
 no_index:

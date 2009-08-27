@@ -1,4 +1,4 @@
-use Test::More tests => 41;
+use Test::More tests => 135;
 use strict;
 
 use_ok('Net::LDAP::Class');
@@ -154,8 +154,57 @@ cmp_ok( $group->gid, '==', $user->gid, "prim group changed" );
 ok( !@{ $user->groups },                 "no secondary groups" );
 ok( !@{ $group->fetch_secondary_users }, "no secondary users" );
 
-diag( "group = $group" );
-is( $group->name, 'foogroup', 'test name()');
-ok( $group->name('foo123'), 'reset name()');
-is( $group->name, 'foo123', 'test name()');
-diag( "group = $group" );
+diag("group = $group");
+is( $group->name, 'foogroup', 'test name()' );
+ok( $group->name('foo123'), 'reset name()' );
+is( $group->name, 'foo123', 'test name()' );
+diag("group = $group");
+
+##############################################################
+# test the new *_iterator() methods for users and groups
+
+# seed the test server with N users in the same group
+my $N = 20;
+for my $n ( 1 .. $N ) {
+    ok( my $u = MyLDAPUser->new(
+            sAMAccountName => $n,
+            ldap           => $ldap,
+            group          => $group,
+            groups         => [$bar_group],
+            cn             => "User $n",
+        ),
+        "new user $n"
+    );
+    ok( $u->create, "create user $u" );
+}
+
+ok( my $users_iterator = $group->users_iterator( page_size => 5 ),
+    "get users_iterator" );
+while ( my $u = $users_iterator->next ) {
+    ok( $u->username, "get user $u" );
+}
+
+# +1 because of our original $user
+is( $users_iterator->count, $N + 1, "fetched correct number users_iterator" );
+ok( $users_iterator = $bar_group->users_iterator( page_size => 5 ),
+    "get bar_group users_iterator" );
+while ( my $u = $users_iterator->next ) {
+    ok( $u->username, "get user $u" );
+}
+is( $users_iterator->count, $N, "fetched correct number users_iterator" );
+
+# exercise the finish() method
+ok( $users_iterator = $bar_group->users_iterator(), "get users_iterator" );
+ok( $users_iterator->next,   "fetch one result" );
+ok( $users_iterator->finish, "finish the iterator" );
+is( $users_iterator->count, 1, "one count" );
+
+# exercise the group iterators
+ok( my $user_one = MyLDAPUser->new( ldap => $ldap, username => '1' )->read,
+    "read user_one" );
+ok( my $groups_iterator = $user_one->groups_iterator, "get groups_iterator" );
+while ( my $g = $groups_iterator->next ) {
+    ok( $g->name, "get group $g" );
+}
+ok( $groups_iterator->is_exhausted, "groups_iterator exausted" );
+is( $groups_iterator->count, 1, "groups_iterator count" );

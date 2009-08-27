@@ -15,7 +15,7 @@ WriteMakefile(
         'MIME::Base64' => 0,
         'Rose::Object' => 0,
         'Net::LDAP'    => 0,
-        'Net::LDAP::Server::Test' => 0.08_01,
+        'Net::LDAP::Server::Test' => 0.08,
         'Net::LDAP::Batch' => 0,
         'Clone' => 0,
 

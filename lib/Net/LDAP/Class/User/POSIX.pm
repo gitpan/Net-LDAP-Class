@@ -9,7 +9,7 @@ use base qw( Net::LDAP::Class::User );
 use Net::LDAP::Class::MethodMaker ( 'scalar --get_set_init' =>
         [qw( default_shell default_home_dir default_email_suffix )], );
 
-our $VERSION = '0.19';
+our $VERSION = '0.20';
 
 # see http://www.ietf.org/rfc/rfc2307.txt
 
@@ -178,6 +178,14 @@ sub action_for_create {
     if ( exists $self->{groups} ) {
         for my $group ( @{ $self->{groups} } ) {
             my @newUids;
+            if ( !$group->read ) {
+                croak
+                    "You must create group $group before you add User $self to it";
+            }
+            if ( $self->debug ) {
+                warn "POSIX group $group has memberUid: "
+                    . Data::Dump::dump( $group->memberUid );
+            }
             if ( $group->memberUid ) {
                 @newUids = ( $group->memberUid, $username );
             }
@@ -520,13 +528,36 @@ group_class().
 
 sub fetch_groups {
     my $self  = shift;
-    my $class = $self->group_class or croak "group_class() required";
+    my $class = $self->group_class or croak "group_class required";
     my @g     = $class->find(
         ldap    => $self->ldap,
         base_dn => 'ou=Group,' . $self->group->base_dn,
         filter  => "(memberUid=" . $self->uid . ")",
     );
     return wantarray ? @g : \@g;
+}
+
+=head2 groups_iterator([I<opts>])
+
+Returns a Net::LDAP::Class::Iterator object for same data
+as fetch_groups().
+
+See the advice in L<Net::LDAP::Class::Iterator> about iterators
+versus arrays.
+
+=cut
+
+sub groups_iterator {
+    my $self        = shift;
+    my $group_class = $self->group_class or croak "group_class required";
+    my $uid         = $self->uid || $self->read->uid;
+    return Net::LDAP::Class::Iterator->new(
+        class   => $group_class,
+        base_dn => 'ou=Group,' . $self->group->base_dn,
+        filter  => "(memberUid=$uid)",
+        ldap    => $self->ldap,
+        @_
+    );
 }
 
 =head2 gid

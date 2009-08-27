@@ -11,6 +11,9 @@ use Net::LDAP::Control::Paged;
 use Net::LDAP::Constant qw(LDAP_CONTROL_PAGED);
 use Net::LDAP::Batch;
 use Net::LDAP::Class::Metadata;
+use Net::LDAP::Class::Iterator;
+use Net::LDAP::Class::MultiIterator;
+use Net::LDAP::Class::SimpleIterator;
 
 use Net::LDAP::Class::MethodMaker (
     'scalar --get_set_init' => [qw( ldap ldap_entry debug error )],
@@ -18,9 +21,9 @@ use Net::LDAP::Class::MethodMaker (
     'object_or_class_meta'  => [qw( attributes unique_attributes base_dn )],
 );
 
-use overload '""' => 'stringify', 'fallback' => 1;
+use overload '""' => 'stringify', 'bool' => sub {1}, 'fallback' => 1;
 
-our $VERSION = '0.19';
+our $VERSION = '0.20';
 
 =head1 NAME
 
@@ -168,11 +171,12 @@ sub init_ldap {
 
 =head2 init_debug
 
-Sets the default debug flag to whatever the PERL_DEBUG env variable is set to.
+Sets the default debug flag to whatever the PERL_DEBUG or LDAP_DEBUG
+env variable is set to.
 
 =cut
 
-sub init_debug { $ENV{PERL_DEBUG} }
+sub init_debug { $ENV{PERL_DEBUG} || $ENV{LDAP_DEBUG} }
 
 =head2 init_ldap_entry
 
@@ -806,8 +810,6 @@ Just like isa_user() but checks the Net::LDAP::Class::Group.
 sub isa_group {
     return shift->isa('Net::LDAP::Class::Group');
 }
-
-
 
 1;
 

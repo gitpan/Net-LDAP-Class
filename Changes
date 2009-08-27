@@ -107,3 +107,9 @@ Revision history for Net-LDAP-Class
         * tweek N::L::C::G::AD per https://rt.cpan.org/Ticket/Display.html?id=48562
         * add isa_user() and isa_group() methods to base class per same RT ticket.
 
+0.20    26 Aug 2009
+        * add Iterator, SimpleIterator and MultiIterator classes and supporting methods.
+          Thanks to Peter Newman for dialogue on the development of the iterator feature.
+          See https://rt.cpan.org/Ticket/Display.html?id=48562
+        * fix overloading for boolean checks when stringify() evaluates false (emptry string, e.g.)
+

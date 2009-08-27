@@ -5,7 +5,7 @@ use base qw( Net::LDAP::Class::Group );
 use Carp;
 use Data::Dump ();
 
-our $VERSION = '0.19';
+our $VERSION = '0.20';
 
 =head1 NAME
 
@@ -31,7 +31,8 @@ Net::LDAP::Class::Group::AD - Active Directory group class
  use MyLDAPGroup;
  my $group = MyLDAPGroup->new( ldap => $ldap, cn => 'foobar' );
  $group->read_or_create;
- for my $user ($group->users) {
+ my $users = $group->users_iterator( page_size => 50 );
+ while ( my $user = $users->next ) {
      printf("user %s in group %s\n", $user, $group);
  }
 
@@ -112,6 +113,30 @@ sub fetch_primary_users {
     return wantarray ? @users : \@users;
 }
 
+=head2 primary_users_iterator([I<opts>])
+
+Returns a Net::LDAP::Class::Iterator object for all the related
+primary users for the group.
+
+This is the same data as primary_users() returns, but is more
+efficient since it pages the results and only fetches
+one at a time.
+
+=cut
+
+sub primary_users_iterator {
+    my $self = shift;
+    my $user_class = $self->user_class or croak "user_class required";
+    my $pgt  = $self->primaryGroupToken || $self->read->primaryGroupToken;
+    return Net::LDAP::Class::Iterator->new(
+        class   => $user_class,
+        ldap    => $self->ldap,
+        base_dn => $self->base_dn,
+        filter  => "(primaryGroupID=$pgt)",
+        @_
+    );
+}
+
 =head2 fetch_secondary_users
 
 Required MethodMaker method for retrieving secondary_users from LDAP.
@@ -119,7 +144,30 @@ Required MethodMaker method for retrieving secondary_users from LDAP.
 Returns array or array ref based on context, of related User objects
 who have this group assigned as a secondary group (memberOf).
 
+Consider using secondary_users_iterator() instead, especially if you
+have large groups. See L<Net::LDAP::Class::Iterator> for an explanation.
+
 =cut
+
+# TODO why doesn't this pass tests?
+#sub fetch_secondary_users {
+#    my $self       = shift;
+#    my $user_class = $self->user_class;
+#    my $dn         = $self->distinguishedName || $self->cn;
+#
+#    # escape any parens
+#    $dn =~ s/\(/\\(/g;
+#    $dn =~ s/\)/\\)/g;
+#
+#    my @users = $user_class->find(
+#        scope   => 'sub',
+#        filter  => qq{(memberOf=$dn)},
+#        ldap    => $self->ldap,
+#        base_dn => $self->base_dn,
+#    );
+#
+#    return wantarray ? @users : \@users;
+#}
 
 sub fetch_secondary_users {
     my $self = shift;
@@ -127,7 +175,7 @@ sub fetch_secondary_users {
     $self->read;    # make sure we have latest ldap_entry for member
 
     my @members    = $self->member;
-    my $user_class = $self->user_class;
+    my $user_class = $self->user_class or croak "user_class required";
     my @users;
     for my $dn (@members) {
         my ($cn) = ( $dn =~ m/^cn=([^,]+),/i );
@@ -138,7 +186,8 @@ sub fetch_secondary_users {
             ldap              => $self->ldap,
             base_dn           => $self->base_dn,
         )->read;
-        if (defined $user) {  # see https://rt.cpan.org/Ticket/Display.html?id=48562
+        if ( defined $user )
+        {    # see https://rt.cpan.org/Ticket/Display.html?id=48562
             push( @users, $user );
         }
         else {
@@ -146,6 +195,44 @@ sub fetch_secondary_users {
         }
     }
     return wantarray ? @users : \@users;
+}
+
+=head2 secondary_users_iterator([I<opts>])
+
+Like primary_users_iterator, only for secondary_users.
+
+This is the same data as secondary_users() returns, but is more
+efficient since it pages the results and only fetches
+one at a time.
+
+=cut
+
+sub secondary_users_iterator {
+    my $self = shift;
+    my $dn = $self->distinguishedName || $self->cn;
+
+    # escape any parens
+    $dn =~ s/\(/\\(/g;
+    $dn =~ s/\)/\\)/g;
+
+    # there's a subtle bug possible here.
+    # unlike secondary_users, which will croak if there's
+    # a mismatch in the list of members the group claims
+    # and what LDAP actually returns for the $dn value,
+    # this query will silenty miss any users who don't have
+    # memberOf set correctly. I don't *think* it's an issue
+    # since we're looking for memberOf specifically,
+    # rather than parsing the $dn for the user's distinguishedName
+    # but you never know.
+    # The behaviour in secondary_users() is actually more brittle,
+    # as it will point out the problems in parsing the $dn.
+    return Net::LDAP::Class::Iterator->new(
+        class   => $self->user_class,
+        ldap    => $self->ldap,
+        base_dn => $self->base_dn,
+        filter  => qq{(memberOf=$dn)},
+        @_
+    );
 }
 
 =head2 gid

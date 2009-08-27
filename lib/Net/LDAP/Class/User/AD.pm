@@ -9,7 +9,7 @@ use Net::LDAP::Class::MethodMaker (
     'scalar --get_set_init' => [qw( default_home_dir default_email_suffix )],
 );
 
-our $VERSION = '0.19';
+our $VERSION = '0.20';
 
 =head1 NAME
 
@@ -139,14 +139,14 @@ sub fetch_group {
 
     # because AD does not store primaryGroupToken but computes it,
     # we must do gymnastics using SIDs
-    warn "gid = $gid";
+    $self->debug and warn "gid = $gid";
 
-    my $user_sid_string = _sid2string( $self->objectSID );
+    my $user_sid_string = $self->_sid2string( $self->objectSID );
 
-    warn "user_sid_string:  $user_sid_string";
+    $self->debug and warn "user_sid_string:  $user_sid_string";
     ( my $group_sid_string = $user_sid_string ) =~ s/\-[^\-]+$/-$gid/;
 
-    warn "group_sid_string: $group_sid_string";
+    $self->debug and warn "group_sid_string: $group_sid_string";
 
     return $class->new(
         objectSID => $group_sid_string,
@@ -155,12 +155,13 @@ sub fetch_group {
 }
 
 sub _sid2string {
-    my $sid = shift;
-    carp "nlc sid    = " . Data::Dump::dump($sid);
+    my $self = shift;
+    my $sid  = shift;
+    $self->debug and carp "nlc sid    = " . Data::Dump::dump($sid);
     my (@unpack) = unpack( "H2 H2 n N V*", $sid );
     my ( $sid_rev, $num_auths, $id1, $id2, @ids ) = (@unpack);
     my $string = join( "-", "S", $sid_rev, ( $id1 << 32 ) + $id2, @ids );
-    carp "nlc string = $string";
+    $self->debug and carp "nlc string = $string";
     return $string;
 }
 
@@ -219,6 +220,38 @@ sub fetch_groups {
     }
 
     return wantarray ? @groups : \@groups;
+}
+
+=head2 groups_iterator([I<opts>])
+
+Returns a Net::LDAP::Class::Iterator object with all the secondary
+groups. This is the same data as fetch_groups() but as an iterator
+instead of an array.
+
+See the advice about iterators versus arrays in L<Net::LDAP::Class::Iterator>.
+
+=cut
+
+sub groups_iterator {
+    my $self        = shift;
+    my $group_class = $self->group_class or croak "group_class required";
+    my $ldap        = $self->ldap or croak "ldap required";
+    my @DNs         = $self->memberOf;
+    if ( !@DNs ) {
+        @DNs = $self->read->memberOf;
+    }
+
+    return Net::LDAP::Class::SimpleIterator->new(
+        code => sub {
+            my $dn = shift @DNs or return undef;
+            $dn =~ s/^cn=([^,]+),.+/$1/i;
+            $group_class->new(
+                cn   => $dn,
+                ldap => $ldap
+            )->read;
+
+        }
+    );
 }
 
 =head2 gid
@@ -418,7 +451,7 @@ sub action_for_create {
         #warn Data::Dump::dump $self->{groups};
 
     G: for my $group ( @{ $self->{groups} } ) {
-            if ( !$group->ldap_entry ) {
+            if ( !$group->read ) {
                 croak
                     "You must create group $group before you add User $self to it";
             }
@@ -697,9 +730,10 @@ Returns action suitable for creating a Net::LDAP::Batch::Action::Delete.
 =cut
 
 sub action_for_delete {
-    my $self     = shift;
-    my %opts     = @_;
-    my $username = delete $opts{sAMAccountName}
+    my $self = shift;
+    my %opts = @_;
+    my $username 
+        = delete $opts{sAMAccountName}
         || delete $opts{username}
         || $self->username;
 

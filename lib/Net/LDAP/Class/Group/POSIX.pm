@@ -4,7 +4,7 @@ use warnings;
 use Carp;
 use base qw( Net::LDAP::Class::Group );
 
-our $VERSION = '0.19';
+our $VERSION = '0.20';
 
 my $RESERVED_GID = 999999;    # used when renaming groups
 
@@ -425,6 +425,28 @@ sub fetch_primary_users {
     return wantarray ? @u : \@u;
 }
 
+=head2 primary_users_iterator
+
+Returns Net::LDAP::Class::Iterator for the same query as fetch_primary_users().
+
+See the advice in L<Net::LDAP::Class::Iterator> about iterators
+versus arrays.
+
+=cut
+
+sub primary_users_iterator {
+    my $self       = shift;
+    my $user_class = $self->user_class or croak "user_class required";
+    my $name       = $self->cn || $self->read->cn;
+    return Net::LDAP::Class::Iterator->new(
+        class   => $user_class,
+        base_dn => "ou=$name,ou=People," . $self->base_dn,
+        filter  => "(objectClass=posixAccount)",
+        ldap    => $self->ldap,
+        @_
+    );
+}
+
 =head2 fetch_secondary_users
 
 Required MethodMaker method for retrieving secondary_users from LDAP.
@@ -446,6 +468,32 @@ sub fetch_secondary_users {
             $user_class->new( ldap => $self->ldap, uid => $_ )->read
     } $self->memberUid;
     return wantarray ? @users : \@users;
+}
+
+=head2 secondary_users_iterator([I<opts>])
+
+Returns Net::LDAP::Class::SimpleIterator for the same query as 
+fetch_secondary_users().
+
+See the advice in L<Net::LDAP::Class::Iterator> about iterators
+versus arrays.
+
+=cut
+
+sub secondary_users_iterator {
+    my $self       = shift;
+    my $user_class = $self->user_class or croak "user_class required";
+    my $ldap       = $self->ldap or croak "ldap required";
+    my @uids       = $self->memberUid;
+    if ( !@uids ) {
+        @uids = $self->read->memberUid;
+    }
+    return Net::LDAP::Class::SimpleIterator->new(
+        code => sub {
+            my $uid = shift @uids or return undef;
+            return $user_class->new( ldap => $ldap, uid => $uid )->read;
+        }
+    );
 }
 
 =head2 gid

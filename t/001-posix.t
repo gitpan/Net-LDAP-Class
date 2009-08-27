@@ -1,4 +1,4 @@
-use Test::More tests => 45;
+use Test::More tests => 145;
 use strict;
 
 use_ok('Net::LDAP::Class');
@@ -179,3 +179,52 @@ ok( my $count = MyLDAPUser->new()->act_on_all(
 );
 
 is( $count, 7, "act_on_all == $count" );
+
+# test the iterators
+# seed the test server with N users in the same group
+my $N = 20;
+for my $n ( 1 .. $N ) {
+    ok( my $u = MyLDAPUser->new(
+            username  => $n,
+            uidNumber => $n,
+            gecos     => "User $n",
+            ldap      => $ldap,
+            group     => $group,
+            groups    => [$bar_group],
+        ),
+        "new user $n"
+    );
+    ok( $u->create, "create user $u" );
+}
+
+ok( my $users_iterator = $group->users_iterator( page_size => 5 ),
+    "get users_iterator" );
+while ( my $u = $users_iterator->next ) {
+    ok( $u->username, "get user $u" );
+}
+
+# +7 because of existing users
+is( $users_iterator->count, $N + 7, "fetched correct number users_iterator" );
+ok( $users_iterator = $bar_group->read->users_iterator( page_size => 5 ),
+    "get bar_group users_iterator" );
+
+while ( my $u = $users_iterator->next ) {
+    ok( $u->username, "get user $u" );
+}
+is( $users_iterator->count, $N, "fetched correct number users_iterator" );
+
+# exercise the finish() method
+ok( $users_iterator = $bar_group->users_iterator(), "get users_iterator" );
+ok( $users_iterator->next,   "fetch one result" );
+ok( $users_iterator->finish, "finish the iterator" );
+is( $users_iterator->count, 1, "one count" );
+
+# exercise the group iterators
+ok( my $user_one = MyLDAPUser->new( ldap => $ldap, username => '1' )->read,
+    "read user_one" );
+ok( my $groups_iterator = $user_one->groups_iterator, "get groups_iterator" );
+while ( my $g = $groups_iterator->next ) {
+    ok( $g->name, "get group $g" );
+}
+ok( $groups_iterator->is_exhausted, "groups_iterator exausted" );
+is( $groups_iterator->count, 1, "groups_iterator count" );

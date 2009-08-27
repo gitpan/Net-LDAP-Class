@@ -9,6 +9,9 @@ lib/Net/LDAP/Class/MethodMaker.pm
 lib/Net/LDAP/Class/User.pm
 lib/Net/LDAP/Class/User/AD.pm
 lib/Net/LDAP/Class/User/POSIX.pm
+lib/Net/LDAP/Class/Iterator.pm
+lib/Net/LDAP/Class/MultiIterator.pm
+lib/Net/LDAP/Class/SimpleIterator.pm
 Makefile.PL
 MANIFEST
 README
@@ -16,6 +19,7 @@ t/00-load.t
 t/001-posix.t
 t/002-ad.t
 t/003-loader.t
+t/005-overloading.t
 t/lib/LDAPTestAD.pm
 t/lib/LDAPTestPOSIX.pm
 t/pod-coverage.t
