@@ -9,7 +9,7 @@ use Net::LDAP::Class::MethodMaker (
 use Net::LDAP::Control::Paged;
 use Net::LDAP::Constant qw( LDAP_CONTROL_PAGED );
 
-our $VERSION = '0.20';
+our $VERSION = '0.21';
 
 =head1 NAME
 

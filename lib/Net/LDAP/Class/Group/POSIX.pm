@@ -4,7 +4,7 @@ use warnings;
 use Carp;
 use base qw( Net::LDAP::Class::Group );
 
-our $VERSION = '0.20';
+our $VERSION = '0.21';
 
 my $RESERVED_GID = 999999;    # used when renaming groups
 
@@ -454,19 +454,20 @@ Required MethodMaker method for retrieving secondary_users from LDAP.
 Returns array or array ref based on context, of related User objects
 who have this group assigned as a secondary group.
 
+Consider using secondary_users_iterator() instead, especially if you
+have large groups. See L<Net::LDAP::Class::Iterator> for an explanation.
+This method is just a wrapper around secondary_users_iterator().
+
 =cut
 
+# changed to using iterator to avoid surprises for large groups.
 sub fetch_secondary_users {
     my $self = shift;
-    my $user_class = $self->user_class or croak "user_class() required";
-
-    $self->read;    # make sure we have latest ldap_entry for memberUid
-
-    #carp Data::Dump::dump( $self );
-    my @users = map {
-        grep {defined}
-            $user_class->new( ldap => $self->ldap, uid => $_ )->read
-    } $self->memberUid;
+    my @users;
+    my $iter = $self->secondary_users_iterator;
+    while ( my $u = $iter->next ) {
+        push @users, $u;
+    }
     return wantarray ? @users : \@users;
 }
 
@@ -484,10 +485,9 @@ sub secondary_users_iterator {
     my $self       = shift;
     my $user_class = $self->user_class or croak "user_class required";
     my $ldap       = $self->ldap or croak "ldap required";
-    my @uids       = $self->memberUid;
-    if ( !@uids ) {
-        @uids = $self->read->memberUid;
-    }
+    $self->read;    # make sure we have latest memberUid list
+    my @uids = $self->memberUid;
+
     return Net::LDAP::Class::SimpleIterator->new(
         code => sub {
             my $uid = shift @uids or return undef;

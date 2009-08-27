@@ -113,3 +113,7 @@ Revision history for Net-LDAP-Class
           See https://rt.cpan.org/Ticket/Display.html?id=48562
         * fix overloading for boolean checks when stringify() evaluates false (emptry string, e.g.)
 
+0.21    26 Aug 2009
+        * change fetch_secondary_users() in both Group::AD and Group::POSIX to just wrap around
+          secondary_users_iterator().
+

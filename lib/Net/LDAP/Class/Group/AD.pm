@@ -5,7 +5,7 @@ use base qw( Net::LDAP::Class::Group );
 use Carp;
 use Data::Dump ();
 
-our $VERSION = '0.20';
+our $VERSION = '0.21';
 
 =head1 NAME
 
@@ -127,7 +127,7 @@ one at a time.
 sub primary_users_iterator {
     my $self = shift;
     my $user_class = $self->user_class or croak "user_class required";
-    my $pgt  = $self->primaryGroupToken || $self->read->primaryGroupToken;
+    my $pgt = $self->primaryGroupToken || $self->read->primaryGroupToken;
     return Net::LDAP::Class::Iterator->new(
         class   => $user_class,
         ldap    => $self->ldap,
@@ -146,53 +146,17 @@ who have this group assigned as a secondary group (memberOf).
 
 Consider using secondary_users_iterator() instead, especially if you
 have large groups. See L<Net::LDAP::Class::Iterator> for an explanation.
+This method is just a wrapper around secondary_users_iterator().
 
 =cut
 
-# TODO why doesn't this pass tests?
-#sub fetch_secondary_users {
-#    my $self       = shift;
-#    my $user_class = $self->user_class;
-#    my $dn         = $self->distinguishedName || $self->cn;
-#
-#    # escape any parens
-#    $dn =~ s/\(/\\(/g;
-#    $dn =~ s/\)/\\)/g;
-#
-#    my @users = $user_class->find(
-#        scope   => 'sub',
-#        filter  => qq{(memberOf=$dn)},
-#        ldap    => $self->ldap,
-#        base_dn => $self->base_dn,
-#    );
-#
-#    return wantarray ? @users : \@users;
-#}
-
+# changed to using iterator to avoid surprises for large groups.
 sub fetch_secondary_users {
     my $self = shift;
-
-    $self->read;    # make sure we have latest ldap_entry for member
-
-    my @members    = $self->member;
-    my $user_class = $self->user_class or croak "user_class required";
     my @users;
-    for my $dn (@members) {
-        my ($cn) = ( $dn =~ m/^cn=([^,]+),/i );
-        $dn =~ s/\(/\\(/g;
-        $dn =~ s/\)/\\)/g;
-        my $user = $user_class->new(
-            distinguishedName => $dn,
-            ldap              => $self->ldap,
-            base_dn           => $self->base_dn,
-        )->read;
-        if ( defined $user )
-        {    # see https://rt.cpan.org/Ticket/Display.html?id=48562
-            push( @users, $user );
-        }
-        else {
-            croak "can't find user $cn ($dn) via LDAP";
-        }
+    my $iter = $self->secondary_users_iterator;
+    while ( my $u = $iter->next ) {
+        push @users, $u;
     }
     return wantarray ? @users : \@users;
 }
