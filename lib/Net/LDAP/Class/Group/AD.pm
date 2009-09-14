@@ -5,7 +5,7 @@ use base qw( Net::LDAP::Class::Group );
 use Carp;
 use Data::Dump ();
 
-our $VERSION = '0.21';
+our $VERSION = '0.22';
 
 =head1 NAME
 
@@ -80,15 +80,6 @@ sub AD_unique_attributes {
 }
 
 =head1 OBJECT METHODS
-
-=head2 init_user_class
-
-Defaults to Net::LDAP::Class::User::AD.
-You likely want to override this in your subclass.
-
-=cut
-
-sub init_user_class {'Net::LDAP::Class::User::AD'}
 
 =head2 fetch_primary_users
 

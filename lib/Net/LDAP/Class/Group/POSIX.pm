@@ -4,7 +4,7 @@ use warnings;
 use Carp;
 use base qw( Net::LDAP::Class::Group );
 
-our $VERSION = '0.21';
+our $VERSION = '0.22';
 
 my $RESERVED_GID = 999999;    # used when renaming groups
 
@@ -74,16 +74,6 @@ sub POSIX_unique_attributes {
 }
 
 =head1 OBJECT METHODS
-
-
-=head2 init_user_class
-
-Defaults to Net::LDAP::Class::User::POSIX.
-You likely want to override this in your subclass.
-
-=cut
-
-sub init_user_class {'Net::LDAP::Class::User::POSIX'}
 
 =head2 read
 

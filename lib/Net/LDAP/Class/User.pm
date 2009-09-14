@@ -8,7 +8,7 @@ use Net::LDAP::Class::MethodMaker (
     'related_objects'       => [qw( group groups )],
 );
 
-our $VERSION = '0.21';
+our $VERSION = '0.22';
 
 =head1 NAME
 
@@ -119,7 +119,10 @@ Default is to croak indicating you must override this method in your subclass.
 
 =cut
 
-sub init_group_class { croak "must override init_group_class" }
+sub init_group_class {
+    croak "Must override init_group_class() or set group_class in metadata. "
+        . "Have you created a group subclass yet?";
+}
 
 =head2 stringify
 

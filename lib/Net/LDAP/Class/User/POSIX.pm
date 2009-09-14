@@ -9,7 +9,7 @@ use base qw( Net::LDAP::Class::User );
 use Net::LDAP::Class::MethodMaker ( 'scalar --get_set_init' =>
         [qw( default_shell default_home_dir default_email_suffix )], );
 
-our $VERSION = '0.21';
+our $VERSION = '0.22';
 
 # see http://www.ietf.org/rfc/rfc2307.txt
 
@@ -104,15 +104,6 @@ Returns an empty string.
 =cut
 
 sub init_default_email_suffix {''}
-
-=head2 init_group_class
-
-Defaults to Net::LDAP::Class::Group::POSIX.
-You likely want to override this in your subclass.
-
-=cut
-
-sub init_group_class {'Net::LDAP::Class::Group::POSIX'}
 
 =head2 action_for_create([ uid => I<username>, uidNumber => I<nnn> ])
 

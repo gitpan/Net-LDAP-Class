@@ -117,3 +117,7 @@ Revision history for Net-LDAP-Class
         * change fetch_secondary_users() in both Group::AD and Group::POSIX to just wrap around
           secondary_users_iterator().
 
+0.22    14 Sep 2009
+        * add pswd_will_expire_localtime to User::AD
+        * remove init_user_class and init_group_class overrides in subclasses, 
+          to prevent masking the fact that you must create your own subclass.

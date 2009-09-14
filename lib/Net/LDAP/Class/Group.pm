@@ -9,7 +9,7 @@ use Net::LDAP::Class::MethodMaker (
 
 );
 
-our $VERSION = '0.21';
+our $VERSION = '0.22';
 
 =head1 NAME
 
@@ -121,7 +121,10 @@ for your Group class.
 
 =cut
 
-sub init_user_class { croak "must override init_user_class" }
+sub init_user_class {
+    croak "Must override init_user_class() or set user_class in metadata. "
+        . "Have you created a user subclass yet?";
+}
 
 =head2 name
 

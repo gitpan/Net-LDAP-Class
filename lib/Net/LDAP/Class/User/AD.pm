@@ -5,11 +5,15 @@ use base qw( Net::LDAP::Class::User );
 use Carp;
 use Data::Dump ();
 
+my $PRIMARY_GROUP_NOT_USED = 513;
+my $AD_TIMESTAMP_OFFSET    = 116444736390271392;
+my $AD_TIMESTAMP_OFFSET2   = 11644524000;
+
 use Net::LDAP::Class::MethodMaker (
     'scalar --get_set_init' => [qw( default_home_dir default_email_suffix )],
 );
 
-our $VERSION = '0.21';
+our $VERSION = '0.22';
 
 =head1 NAME
 
@@ -20,18 +24,18 @@ Net::LDAP::Class::User::AD - Active Directory User class
 # subclass this class for your local LDAP
  package MyLDAPUser;
  use base qw( Net::LDAP::Class::User::AD );
- 
+
  __PACKAGE__->metadata->setup(
     base_dn             => 'dc=mycompany,dc=com',
     attributes          => __PACKAGE__->AD_attributes,
     unique_attributes   => __PACKAGE__->AD_unique_attributes,
  );
- 
+
  1;
- 
+
  # then use your class
  my $ldap = get_and_bind_LDAP_object(); # you write this
- 
+
  use MyLDAPUser;
  my $user = MyLDAPUser->new( ldap => $ldap, sAMAccountName  => 'foobar' );
  $user->read_or_create;
@@ -190,6 +194,95 @@ sub _string2sid {
     return $sid;
 }
 
+=head2 last_logon_localtime
+
+Returns human-readable version of lastLogon attribute.
+
+=cut
+
+sub last_logon_localtime {
+    my $self = shift;
+    return scalar localtime( $self->ad_time_as_epoch('lastLogon') );
+}
+
+=head2 pwd_last_set_localtime
+
+Returns human-readable version of pwdLastSet attribute.
+
+=cut
+
+sub pwd_last_set_localtime {
+    my $self = shift;
+    return scalar localtime( $self->ad_time_as_epoch('pwdLastSet') );
+}
+
+=head2 ad_time_as_epoch( I<attribute_name> )
+
+Returns epoch time for I<attribute_name>.
+
+=cut
+
+sub ad_time_as_epoch {
+    my $self = shift;
+    my $attr = shift or croak "attribute_name required";
+    return $self->__ad_ts_to_epoch( $self->$attr );
+}
+
+sub _domain_attrs {
+    my $self    = shift;
+    my $ldap    = $self->ldap;
+    my $base_dn = $self->base_dn;
+    my %args    = (
+        base   => $base_dn,
+        scope  => 'base',
+        attrs  => [],
+        filter => '(objectClass=*)',
+    );
+
+    #Data::Dump::dump \%args;
+
+    my $msg = $ldap->search(%args);
+
+    if ( $msg->code ) {
+        croak $self->get_ldap_error($msg);
+    }
+
+    return $msg->entries();
+}
+
+sub _pwd_max_age {
+    my $self        = shift;
+    my @domain_attr = $self->_domain_attrs();
+    my $maxPwdAge   = $domain_attr[0]->get_value('maxPwdAge');
+
+    #warn "maxPwdAge = $maxPwdAge";
+    my $expires_now = $self->__epoch_to_ad( time() ) + $maxPwdAge;
+
+    #warn "expires_now = $expires_now";
+    return $expires_now;
+}
+
+# was helfpul:
+# http://www.macosxhints.com/article.php?story=20060925114138223
+
+=head2 pwd_will_expire_localtime
+
+Returns human-readable time when password will expire,
+based on pwdLastSet attribute and the domain-level maxPwdAge value.
+
+=cut
+
+sub pwd_will_expire_localtime {
+    my $self        = shift;
+    my $expires_now = $self->_pwd_max_age;
+    my $seconds_till_expire
+        = ( ( $self->pwdLastSet - $expires_now ) / 10000000 );
+
+    #warn "seconds $seconds_till_expire";
+    #warn "days " . ( $seconds_till_expire / 86400 );
+    return scalar localtime( time() + $seconds_till_expire );
+}
+
 =head2 fetch_groups
 
 Required MethodMaker method for retrieving secondary groups from LDAP.
@@ -286,9 +379,9 @@ sub init_default_email_suffix {''}
 Convenience wrapper around unicodePwd() attribute method.
 
 This method will verify I<plain_password> is in the correct
-encoding that AD expects and set it in the ldap_entry(). 
+encoding that AD expects and set it in the ldap_entry().
 
-If no argument is supplied, returns the 
+If no argument is supplied, returns the
 string set in ldap_entry() (if any).
 
 =cut
@@ -488,7 +581,7 @@ sub action_for_create {
 
 =head2 setup_for_write
 
-Utility method for generating default values for 
+Utility method for generating default values for
 various attributes. Called by both action_for_create()
 and action_for_update().
 
@@ -506,6 +599,9 @@ sub setup_for_write {
     if ($group) {
         if ( ref $group and $group->isa('Net::LDAP::Class::Group') ) {
             $gid = $group->gid;
+        }
+        elsif ( $self->primaryGroupID == $PRIMARY_GROUP_NOT_USED ) {
+            warn "primaryGroup feature not used\n";
         }
         else {
             my $group_obj = $self->fetch_group($group);
@@ -610,8 +706,10 @@ sub action_for_update {
     # compare primary group first
     # this assumes that setting group() is preferred to
     # explicitly setting gidNumber.
-    if ( !exists $replace{primaryGroupID}
-        and $self->group->gid != $self->gid )
+    if (   defined $group
+        && $group ne $PRIMARY_GROUP_NOT_USED
+        && !exists $replace{primaryGroupID}
+        && $self->group->gid != $self->gid )
     {
 
         # primary group has changed
@@ -756,6 +854,28 @@ sub action_for_delete {
     );
 
     return @actions;
+}
+
+sub __ad_ts_to_epoch {
+    my $self = shift;
+    my $adts = shift;
+    defined $adts or croak "Active Directory timestamp required";
+
+    # convert windows time to unix time
+    # thanks to http://quark.humbug.org.au/blog/?p=27
+
+    return ( $adts / 10000000 ) - $AD_TIMESTAMP_OFFSET2;
+}
+
+sub __epoch_to_ad {
+    my $self  = shift;
+    my $epoch = shift;
+    defined $epoch or croak "epoch seconds required";
+
+    # convert unix time to windows time
+    # thanks to http://quark.humbug.org.au/blog/?p=27
+
+    return ( $epoch * 10000000 ) + $AD_TIMESTAMP_OFFSET;
 }
 
 1;
