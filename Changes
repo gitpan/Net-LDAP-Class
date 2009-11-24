@@ -121,3 +121,7 @@ Revision history for Net-LDAP-Class
         * add pswd_will_expire_localtime to User::AD
         * remove init_user_class and init_group_class overrides in subclasses, 
           to prevent masking the fact that you must create your own subclass.
+
+0.23    24 Nov 2009
+        * add explicit unbind() calls in tests per RT #52037
+

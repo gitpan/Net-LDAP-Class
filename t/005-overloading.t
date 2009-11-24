@@ -1,4 +1,4 @@
-use Test::More tests => 10;
+use Test::More tests => 11;
 use strict;
 
 use_ok('Net::LDAP::Class');
@@ -69,3 +69,5 @@ if ($group) {
 else {
     ok( 0, "group evaluates true in if" );
 }
+
+ok( $ldap->unbind(), 'unbind $ldap object from server' );

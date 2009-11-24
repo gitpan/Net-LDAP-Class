@@ -1,4 +1,4 @@
-use Test::More tests => 145;
+use Test::More tests => 146;
 use strict;
 
 use_ok('Net::LDAP::Class');
@@ -228,3 +228,5 @@ while ( my $g = $groups_iterator->next ) {
 }
 ok( $groups_iterator->is_exhausted, "groups_iterator exausted" );
 is( $groups_iterator->count, 1, "groups_iterator count" );
+
+ok( $ldap->unbind(), 'unbind $ldap object from server' );
