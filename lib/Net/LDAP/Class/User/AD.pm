@@ -13,7 +13,7 @@ use Net::LDAP::Class::MethodMaker (
     'scalar --get_set_init' => [qw( default_home_dir default_email_suffix )],
 );
 
-our $VERSION = '0.23';
+our $VERSION = '0.24';
 
 =head1 NAME
 

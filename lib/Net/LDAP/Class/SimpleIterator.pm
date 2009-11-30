@@ -6,7 +6,7 @@ use Carp;
 use Data::Dump qw( dump );
 use Net::LDAP::Class::MethodMaker ( 'scalar' => [qw( code )], );
 
-our $VERSION = '0.23';
+our $VERSION = '0.24';
 
 =head1 NAME
 

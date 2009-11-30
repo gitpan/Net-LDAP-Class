@@ -125,3 +125,7 @@ Revision history for Net-LDAP-Class
 0.23    24 Nov 2009
         * add explicit unbind() calls in tests per RT #52037
 
+0.24    29 Nov 2009
+        * flag some AD tests as TODO until the pack/unpack issue with SIDs can be ironed out.
+          It only seems to affect Net::LDAP::Server::Test, not actual AD servers.
+
