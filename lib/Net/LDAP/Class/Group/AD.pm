@@ -5,7 +5,7 @@ use base qw( Net::LDAP::Class::Group );
 use Carp;
 use Data::Dump ();
 
-our $VERSION = '0.24';
+our $VERSION = '0.25';
 
 =head1 NAME
 

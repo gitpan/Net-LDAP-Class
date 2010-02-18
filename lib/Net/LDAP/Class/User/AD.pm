@@ -13,7 +13,7 @@ use Net::LDAP::Class::MethodMaker (
     'scalar --get_set_init' => [qw( default_home_dir default_email_suffix )],
 );
 
-our $VERSION = '0.24';
+our $VERSION = '0.25';
 
 =head1 NAME
 
@@ -158,40 +158,40 @@ sub fetch_group {
     )->read;
 }
 
-sub _sid2string {
-    my $self = shift;
-    my $sid  = shift;
-    $self->debug and carp "nlc sid    = " . Data::Dump::dump($sid);
-    my (@unpack) = unpack( "H2 H2 n N V*", $sid );
-    my ( $sid_rev, $num_auths, $id1, $id2, @ids ) = (@unpack);
-    my $string = join( "-", "S", $sid_rev, ( $id1 << 32 ) + $id2, @ids );
-    $self->debug and carp "nlc string = $string";
-    return $string;
-}
-
 sub _string2sid {
-    my $string = shift;
-    my (@split) = split( m/\-/, $string );
-    my ( $prefix, $sid_rev, $auth_id, @ids ) = (@split);
-    if ( $auth_id != scalar(@ids) ) {
-        die "bad string: $string";
+    my ( $self, $string ) = @_;
+
+    my ( undef, $revision_level, $authority, @sub_authorities ) = split /-/,
+        $string;
+    my $sub_authority_count = scalar @sub_authorities;
+
+    my $sid = pack 'C Vxx C V*', $revision_level, $authority,
+        $sub_authority_count, @sub_authorities;
+
+    if ( $ENV{LDAP_DEBUG} ) {
+        carp "sid    = " . join( '\\', unpack '(H2)*', $sid );
+        carp "string = $string";
     }
-
-    my $sid = pack( "C4", "$sid_rev", "$auth_id", 0, 0 );
-    $sid .= pack( "C4",
-        ( $auth_id & 0xff000000 ) >> 24,
-        ( $auth_id & 0x00ff0000 ) >> 16,
-        ( $auth_id & 0x0000ff00 ) >> 8,
-        $auth_id & 0x000000ff );
-
-    for my $i (@ids) {
-        $sid .= pack( "I", $i );
-    }
-
-    carp "nlc string = $string";
-    carp "nlc sid    = " . Data::Dump::dump($sid);
 
     return $sid;
+}
+
+sub _sid2string {
+    my ( $self, $sid ) = @_;
+
+    my ($revision_level,      $authority,
+        $sub_authority_count, @sub_authorities
+    ) = unpack 'C Vxx C V*', $sid;
+
+    die if $sub_authority_count != scalar @sub_authorities;
+
+    my $string = join '-', 'S', $revision_level, $authority, @sub_authorities;
+
+    if ( $ENV{LDAP_DEBUG} ) {
+        carp "sid    = " . join( '\\', unpack '(H2)*', $sid );
+        carp "string = $string";
+    }
+    return $string;
 }
 
 =head2 last_logon_localtime

@@ -82,33 +82,26 @@ ok( $bar_group->has_user($user), "group $bar_group now has user $user" );
 
 ok( $user->password, "random password was set" );
 
-TODO: {
+ok( my $user2 = MyLDAPUser->new(
+        sAMAccountName => "$user",
+        ldap           => $ldap,
+    ),
+    "new user2"
+);
 
-    local $TODO
-        = "Net::LDAP::Server::Test fails to pack/unpack SID correctly on some machines";
+ok( $user2->read, "can read user info" );
 
-    ok( my $user2 = MyLDAPUser->new(
-            sAMAccountName => "$user",
-            ldap           => $ldap,
-        ),
-        "new user2"
-    );
+is( $user2->homeDirectory, '\home\foouser',
+    "homeDirectory set automatically" );
 
-    ok( $user2->read, "can read user info" );
+ok( $user2->homeDirectory('\C:foouser'), "set homeDirectory" );
 
-    is( $user2->homeDirectory, '\home\foouser',
-        "homeDirectory set automatically" );
+ok( $user2->update, "save user2 changes" );
 
-    ok( $user2->homeDirectory('\C:foouser'), "set homeDirectory" );
+ok( $user->read, "re-read user from server" );
 
-    ok( $user2->update, "save user2 changes" );
-
-    ok( $user->read, "re-read user from server" );
-
-    is( $user->homeDirectory, $user2->homeDirectory,
-        "users have same homeDirectory -- write successful" );
-
-}    # end TODO
+is( $user->homeDirectory, $user2->homeDirectory,
+    "users have same homeDirectory -- write successful" );
 
 # change primary group. this should exercise several features.
 ok( my $foo_group2 = MyLDAPGroup->new(

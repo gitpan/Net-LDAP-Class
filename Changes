@@ -129,3 +129,7 @@ Revision history for Net-LDAP-Class
         * flag some AD tests as TODO until the pack/unpack issue with SIDs can be ironed out.
           It only seems to affect Net::LDAP::Server::Test, not actual AD servers.
 
+0.25    17 Feb 2010
+        * rewrite of internal _sid2string() and _string2sid() pack/unpack magic. Many thanks
+          to David Lowe for the help.
+
