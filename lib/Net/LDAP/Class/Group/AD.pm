@@ -5,7 +5,7 @@ use base qw( Net::LDAP::Class::Group );
 use Carp;
 use Data::Dump ();
 
-our $VERSION = '0.25';
+our $VERSION = '0.26';
 
 =head1 NAME
 
@@ -390,12 +390,15 @@ sub add_user {
         croak
             "User object must have at least a username before adding to group $self";
     }
-    for my $u ( $self->secondary_users ) {
+    if ( !defined $self->{users} ) {
+        $self->{users} = $self->secondary_users;
+    }
+    my @users = @{ $self->{users} };
+    for my $u (@users) {
         if ( "$u" eq "$user" ) {
             croak "User $user is already a member of group $self";
         }
     }
-    my @users = $self->secondary_users;
     push( @users, $user );
     $self->{users} = \@users;
 }
@@ -418,7 +421,10 @@ sub remove_user {
         croak
             "User object must have at least a username before removing from group $self";
     }
-    my %users = map { $_->username => $_ } @{ $self->secondary_users };
+    if ( !defined $self->{users} ) {
+        $self->{users} = $self->secondary_users;
+    }
+    my %users = map { $_->username => $_ } @{ $self->{users} };
     if ( !exists $users{ $user->username } ) {
         croak "User $user is not a member of group $self";
     }

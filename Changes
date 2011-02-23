@@ -133,3 +133,6 @@ Revision history for Net-LDAP-Class
         * rewrite of internal _sid2string() and _string2sid() pack/unpack magic. Many thanks
           to David Lowe for the help.
 
+0.26    22 Feb 2011
+        * patch from dekimsey@ufl.edu per RT#65658 https://rt.cpan.org/Ticket/Display.html?id=65658
+          that fixes bug with multiple add_user/remove_user calls on a AD group object.

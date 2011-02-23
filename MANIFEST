@@ -19,6 +19,7 @@ t/00-load.t
 t/001-posix.t
 t/002-ad.t
 t/003-loader.t
+t/004-ad-batch-add-remove.t
 t/005-overloading.t
 t/lib/LDAPTestAD.pm
 t/lib/LDAPTestPOSIX.pm
